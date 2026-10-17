@@ -157,6 +157,13 @@ details.extras summary:hover{color:var(--txt)}
 .extras-cuerpo h2{margin-bottom:10px}
 
 /* ------------------------------ voz (micrófono) -------------------------- */
+.btn.mic{width:44px;height:44px;flex:0 0 auto;padding:0;border-radius:50%;font-size:19px;
+  display:grid;place-items:center}
+.btn.mic.on{background:#14301f;border-color:#2c7a4b;color:#a9f0c6}
+.btn.mic.on.silenciado{background:#331c22;border-color:#7a3040;color:#ff9aa9}
+.btn.mic.on::after{content:'';width:7px;height:7px;border-radius:50%;background:#39d98a;
+  position:absolute;margin:22px 0 0 20px}
+.btn.mic[disabled]{opacity:.5;cursor:not-allowed}
 .aviso-voz{position:absolute;left:10px;bottom:10px;z-index:3;background:rgba(10,13,19,.82);
   border:1px solid #2c7a4b;color:#a9f0c6;border-radius:999px;padding:6px 12px;font-size:12px;
   backdrop-filter:blur(6px);max-width:calc(100% - 20px);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
@@ -222,12 +229,12 @@ details.extras summary:hover{color:var(--txt)}
   }
   /* display:contents deja que los hijos de cada columna se reordenen entre sí */
   .col-video,.col-lateral{display:contents}
+  .rejilla>.col-video>.panel-buscar{order:0}    /* buscador arriba del todo */
   .rejilla>.col-video>.player-marco{order:1}
   .rejilla>.col-video>.controles{order:2}
   .rejilla>.col-video>.estado-sync{order:3}
   .rejilla>.col-video>.barra-reacciones{order:4}
   .rejilla>.col-lateral>.chat-panel{order:5}
-  .rejilla>.col-video>.panel-buscar{order:6}     /* buscar / cola */
   .rejilla>.col-lateral>.panel-usuarios{order:7} /* participantes */
   .rejilla>.col-lateral>.extras{order:8}
   .panel{margin-bottom:0}

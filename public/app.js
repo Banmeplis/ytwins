@@ -567,12 +567,12 @@ function pintarBotonVoz() {
   b.classList.toggle('on', v.activa);
   b.classList.toggle('silenciado', v.activa && v.silenciado);
   b.disabled = !vozPluginActivo();
-  b.textContent = !vozPluginActivo() ? '🎙️ Voz (desactivada)'
-    : v.activa ? (v.silenciado ? '🔇 Silenciado' : '🎙️ Hablando')
-    : '🎙️ Voz';
-  b.title = v.activa
-    ? 'Clic para silenciar / volver a hablar. Shift+clic para salir del canal.'
-    : 'Entrar al canal de voz con tu micrófono';
+  b.textContent = !vozPluginActivo() ? '🚫' : v.activa ? (v.silenciado ? '🔇' : '🎙️') : '🎙️';
+  b.title = !vozPluginActivo()
+    ? 'El anfitrión ha desactivado la voz en esta sala'
+    : v.activa
+      ? `Estás en el canal de voz · ${v.conexiones} conexión(es). Clic para silenciar, Shift+clic para salir.`
+      : 'Entrar al canal de voz con tu micrófono';
 }
 
 async function entrarVoz() {
@@ -846,7 +846,9 @@ $('#btn-salir').onclick = () => {
 };
 
 $('#btn-voz').onclick = (e) => {
+  e.preventDefault(); // vive dentro del formulario del chat: que no lo envíe
   const v = window.YTwinsVoz?.estado?.();
+  if (!vozPluginActivo()) return toast('El anfitrión ha desactivado la voz en esta sala.', true);
   if (!v?.activa) return entrarVoz();
   if (e.shiftKey) return alternarSalirVoz(); // salir del canal del todo
   window.YTwinsVoz.alternarMicro();           // solo silenciar/activar
