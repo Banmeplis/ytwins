@@ -1,0 +1,23 @@
+# Render Blueprint: crea el servicio con este archivo.
+# En render.com → New → Blueprint → apunta a tu repositorio de GitHub.
+#
+# IMPORTANTE: crea primero una base de datos (New → PostgreSQL) y añade su
+# DATABASE_URL como Environment Variable en el servicio web. Sin esa variable,
+# la app funciona igual pero guarda las salas en un archivo temporal que se
+# borra en cada despliegue.
+services:
+  - type: web
+    name: ytwins
+    runtime: node
+    plan: free
+    buildCommand: npm install
+    startCommand: npm start
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_VERSION
+        value: "20"
+      # Descomenta cuando tengas la base de datos creada:
+      # - key: DATABASE_URL
+      #   fromDatabase:
+      #     name: ytwins-db
+      #     property: connectionString

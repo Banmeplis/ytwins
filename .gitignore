@@ -1,0 +1,5 @@
+node_modules/
+data/salas.json
+data/salas-test.json
+*.log
+.DS_Store

@@ -1,0 +1,24 @@
+{
+  "name": "ytwins",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Salas para ver YouTube sincronizados con amigos",
+  "scripts": {
+    "start": "node server/index.js",
+    "test": "node test/protocolo.mjs && node test/extensiones.mjs && node test/persistencia.mjs && node test/persistencia_pg.mjs",
+    "test:protocolo": "node test/protocolo.mjs",
+    "test:fuentes": "node test/extensiones.mjs",
+    "test:persistencia": "node test/persistencia.mjs"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "pg": "^8.23.1",
+    "ws": "^8.18.0"
+  },
+  "devDependencies": {
+    "pg-mem": "^3.0.14"
+  }
+}

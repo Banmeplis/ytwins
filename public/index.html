@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>YTwins — mira con amigos</title>
+<link rel="stylesheet" href="/styles.css" />
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>👯</text></svg>" />
+</head>
+<body>
+
+<!-- ================================ LOBBY ================================ -->
+<section id="vista-lobby" class="vista activa">
+  <div class="lobby-caja">
+    <h1>▶ Y<span>Twins</span></h1>
+    <p class="sub">Crea una sala, comparte el código y mirad sincronizados: YouTube, Vimeo, Dailymotion o un .mp4 directo.</p>
+
+    <label class="campo">
+      <span>Tu nombre</span>
+      <input id="in-nombre" type="text" maxlength="24" placeholder="p. ej. Ana" autocomplete="off" />
+    </label>
+
+    <div class="lobby-acciones">
+      <div class="bloque">
+        <label class="campo">
+          <span>Nombre de la sala</span>
+          <input id="in-nombre-sala" type="text" maxlength="40" placeholder="Cine de terror" autocomplete="off" />
+        </label>
+        <button id="btn-crear" class="btn primario">Crear sala</button>
+      </div>
+
+      <div class="separador"><span>o</span></div>
+
+      <div class="bloque">
+        <label class="campo">
+          <span>Código de la sala</span>
+          <input id="in-codigo" type="text" maxlength="6" placeholder="ABC123" autocomplete="off"
+                 style="text-transform:uppercase; letter-spacing:.35em; text-align:center" />
+        </label>
+        <button id="btn-unirse" class="btn secundario">Unirse</button>
+      </div>
+    </div>
+
+    <p id="lobby-error" class="error" hidden></p>
+    <p class="pie">Funciona en móvil, PC y TV. Calidad automática según tu conexión.</p>
+  </div>
+</section>
+
+<!-- ================================= SALA ================================ -->
+<section id="vista-sala" class="vista">
+  <header class="barra">
+    <div class="barra-izq">
+      <strong id="sala-nombre">Sala</strong>
+      <button id="btn-copiar" class="chip" title="Copiar código">Código <b id="sala-codigo">------</b> 📋</button>
+      <span id="chip-conexion" class="chip estado ok">conectado</span>
+    </div>
+    <div class="barra-der">
+      <span id="sala-permisos" class="chip"></span>
+      <button id="btn-voz" class="btn fantasma" title="Entrar al canal de voz con tu micrófono">🎙️ Voz</button>
+      <button id="btn-salir" class="btn fantasma">Salir</button>
+    </div>
+  </header>
+
+  <main class="rejilla">
+    <!-- Columna del vídeo -->
+    <div class="col-video">
+      <div class="player-marco">
+        <div id="player"></div>
+        <div id="player-vacio" class="player-vacio">
+          <p>Sin reproducción</p>
+          <small id="player-vacio-hint">Busca un vídeo o pega un enlace →</small>
+        </div>
+        <button id="btn-autoplay" class="btn-autoplay" hidden>▶ Toca para reproducir</button>
+        <div id="reacciones-vuelo" class="reacciones-vuelo"></div>
+      </div>
+
+      <div class="controles">
+        <button id="btn-play" class="btn circular" title="Reproducir / pausar (Espacio)">▶</button>
+        <span id="tiempo" class="tiempo">0:00 / 0:00</span>
+        <input id="seek" type="range" min="0" max="100" step="0.1" value="0" />
+        <button id="btn-siguiente" class="btn" title="Siguiente vídeo">⏭</button>
+        <button id="btn-saltar" class="btn" title="Votar para saltar">✋ Saltar (<span id="votos">0</span>)</button>
+        <span id="aviso-control" class="aviso-control" hidden>solo quien controla</span>
+      </div>
+
+      <div class="estado-sync">
+        <span id="estado-sync">Sincronizando…</span>
+        <span id="chip-calidad" class="chip estado" title="Calidad elegida automáticamente según tu conexión"></span>
+      </div>
+
+      <div class="barra-reacciones" id="barra-reacciones">
+        <button class="emoji" data-e="👏">👏</button>
+        <button class="emoji" data-e="😂">😂</button>
+        <button class="emoji" data-e="🔥">🔥</button>
+        <button class="emoji" data-e="😮">😮</button>
+        <button class="emoji" data-e="🍿">🍿</button>
+        <button class="emoji" data-e="❤️">❤️</button>
+        <button class="emoji" data-e="💀">💀</button>
+        <button class="emoji" data-e="😭">😭</button>
+      </div>
+
+      <!-- Buscador + cola -->
+      <div class="panel panel-buscar">
+        <div class="pestanas">
+          <button class="pestana on" data-pestana="buscar">🔍 Buscar</button>
+          <button class="pestana" data-pestana="cola">Cola <span id="cola-contador" class="contador">0</span></button>
+        </div>
+
+        <div id="vista-buscar" class="pestana-vista">
+          <form id="form-buscar" class="fila-cola">
+            <input id="in-buscar" type="search" placeholder="Busca en YouTube: título, artista, lo que sea" autocomplete="off" />
+            <button class="btn primario" type="submit">Buscar</button>
+          </form>
+          <p class="aviso" id="aviso-buscar" hidden></p>
+          <ul id="lista-resultados" class="lista"></ul>
+        </div>
+
+        <div id="vista-cola" class="pestana-vista" hidden>
+          <form id="form-cola" class="fila-cola">
+            <input id="in-video" type="text" placeholder="Pega un enlace: YouTube, Vimeo, Dailymotion o .mp4" autocomplete="off" />
+            <button class="btn primario" type="submit">Añadir</button>
+          </form>
+          <ul id="lista-cola" class="lista"></ul>
+        </div>
+      </div>
+    </div>
+
+    <!-- Columna lateral -->
+    <aside class="col-lateral">
+      <div class="panel panel-usuarios">
+        <h2>Participantes <span id="users-contador" class="contador">0</span></h2>
+        <div class="permisos" id="permisos" hidden>
+          <span>Quién controla:</span>
+          <button class="chip alt" data-policy="host">Solo anfitrión</button>
+          <button class="chip alt" data-policy="everyone">Todos</button>
+        </div>
+        <ul id="lista-users" class="lista"></ul>
+
+        <div id="caja-plugins" class="plugins" hidden>
+          <h3>Plugins de la sala</h3>
+          <div id="lista-plugins"></div>
+        </div>
+      </div>
+
+      <div class="panel chat-panel">
+        <h2>Chat</h2>
+        <div id="lista-chat" class="chat"></div>
+        <form id="form-chat" class="fila-chat">
+          <input id="in-chat" type="text" maxlength="500" placeholder="Escribe un mensaje…" autocomplete="off" />
+          <button class="btn primario" type="submit">➤</button>
+        </form>
+      </div>
+
+      <details class="panel extras" id="panel-extras">
+        <summary>✨ Extras</summary>
+        <div class="extras-cuerpo">
+          <div id="caja-plugins" class="plugins" hidden>
+            <h3>Plugins de la sala</h3>
+            <div id="lista-plugins"></div>
+          </div>
+
+          <section id="seccion-encuestas" hidden>
+            <h2>Encuestas</h2>
+            <div id="encuesta-activa"></div>
+            <form id="form-encuesta" class="form-encuesta" hidden>
+              <input id="in-encuesta" type="text" maxlength="140" placeholder="¿Qué vemos ahora?" autocomplete="off" />
+              <input class="op" type="text" maxlength="60" placeholder="Opción 1" autocomplete="off" />
+              <input class="op" type="text" maxlength="60" placeholder="Opción 2" autocomplete="off" />
+              <input class="op" type="text" maxlength="60" placeholder="Opción 3 (opcional)" autocomplete="off" />
+              <button class="btn primario" type="submit">Abrir encuesta</button>
+            </form>
+          </section>
+
+          <section id="seccion-notas" hidden>
+            <h2>Notas compartidas</h2>
+            <div id="notas-lectura" class="notas"></div>
+            <textarea id="in-notas" class="notas-edit" rows="3" maxlength="2000" placeholder="Apunta aquí la dirección, la receta, el plan…" hidden></textarea>
+            <button id="btn-notas" class="btn" hidden>Guardar notas</button>
+          </section>
+        </div>
+      </details>
+    </aside>
+  </main>
+</section>
+
+<div id="toast" class="toast" hidden></div>
+
+<script src="/player.js"></script>
+<script src="/voz.js"></script>
+<script src="/app.js"></script>
+</body>
+</html>
