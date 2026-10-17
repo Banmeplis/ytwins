@@ -1,5 +1,6 @@
 node_modules/
 data/salas.json
 data/salas-test.json
+tools/
 *.log
 .DS_Store
