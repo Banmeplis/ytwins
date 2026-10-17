@@ -48,6 +48,23 @@ npm run test:persistencia  # 33 pruebas de guardado/carga de salas
 
 Atajos: `Espacio` reproduce/pausa.
 
+## En teléfono y en PC
+
+La misma app se adapta sola, sin cambiar nada:
+
+| | Teléfono (vertical) | Teléfono (horizontal) / tableta | PC |
+|---|---|---|---|
+| Reparto | una columna: vídeo → controles → reacciones → **chat** → buscar/cola → participantes → Extras | dos columnas | dos columnas |
+| Barra superior | compacta, con truncar el nombre de la sala | normal | normal |
+| Chat | ~260 px de alto (no se come la pantalla) | alto completo | alto completo |
+| Lobby | un solo bloque, título más pequeño | los dos bloques a la vez | los dos bloques a la vez |
+
+Además, en pantallas táctiles los botones, el interruptor de micro y las barras
+de las encuestas crecen a **44 px** (el mínimo cómodo para el dedo), los campos
+de texto se ponen a 16 px para que **iOS no haga zoom** al escribirlos, y se
+respetan los **bordes seguros** del notch (`env(safe-area-inset-*)`). El zoom
+del navegador sigue permitido: no se bloquea por accesibilidad.
+
 ## Fuentes de vídeo
 
 | Fuente | Reproducción | Metadatos | Notas |
@@ -217,14 +234,23 @@ archivos y no ejecutan código de servidor. Las opciones reales:
 
 ### Pasos con Render (lo más fácil y gratis)
 
-1. Crea una cuenta en [github.com](https://github.com) y sube esta carpeta
-   como repositorio (o usa la app **GitHub Desktop**, que no necesita
-   comandos).
-2. En [render.com](https://render.com) → **New → Blueprint** → conecta ese
-   repositorio. Detecta el `render.yaml` y crea el servicio solo.
+La carpeta ya está preparada como repositorio git (con `.gitignore` para que
+no subas `node_modules` ni los datos de las salas).
+
+1. **GitHub Desktop** → *Add local repository* → busca la carpeta `youtube-room`
+   → *Create a repository* → *Publish repository* (ponle el nombre `ytwins`).
+   Con la web de GitHub también vale, pero hay que subir archivos a mano.
+2. En [render.com](https://render.com) → **New → Blueprint** → **Connect** a
+   ese repositorio. Detecta el `render.yaml` y crea el servicio solo.
 3. En ~2 min tienes una URL pública tipo
    `https://ytwins-xxxx.onrender.com`. Comparte esa URL: tus amigos
    entran con el código de la sala, sin instalar nada.
+4. (Opcional pero recomendado) Crea la base de datos como se explica más abajo
+   y añade `DATABASE_URL` en *Environment*; si no, funciona igual.
+
+Para actualizar la app más adelante: *Commit & Push* en GitHub Desktop y Render
+reconstruye solo. El navegador no se queda con el JS viejo porque el servidor
+manda `cache-control: no-cache`.
 
 Lo que ya está preparado para ello:
 

@@ -3,6 +3,7 @@
   --txt:#e8ecf3; --dim:#93a0b5; --acento:#ff3d5a; --acento2:#4da3ff; --ok:#39d98a;
 }
 *{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
 html,body{height:100%}
 body{
   margin:0;background:radial-gradient(1200px 600px at 70% -10%,#1b2331 0%,var(--bg) 55%);
