@@ -145,8 +145,40 @@
       <div class="panel chat-panel">
         <h2>Chat</h2>
         <div id="lista-chat" class="chat"></div>
+
+        <details class="opciones-voz" id="opciones-voz">
+          <summary>⚙️ Opciones de micrófono</summary>
+          <div class="opciones-cuerpo">
+            <label class="opcion">
+              <span>Micrófono</span>
+              <select id="sel-micro"><option value="">El del sistema</option></select>
+            </label>
+
+            <label class="opcion">
+              <span>Sensibilidad <i id="val-sensibilidad">normal</i></span>
+              <input id="in-sensibilidad" type="range" min="2" max="30" step="1" value="6" />
+            </label>
+
+            <label class="opcion">
+              <span>Volumen del micro <i id="val-ganancia">100 %</i></span>
+              <input id="in-ganancia" type="range" min="20" max="300" step="10" value="100" />
+            </label>
+
+            <label class="opcion fila">
+              <input id="in-ptt" type="checkbox" />
+              <span>Hablar solo mientras mantengo pulsado 🎙️</span>
+            </label>
+
+            <div class="medidor" title="Nivel de tu micrófono">
+              <div class="medidor-barra" id="medidor-barra"></div>
+              <span id="medidor-texto">micro cerrado</span>
+            </div>
+          </div>
+        </details>
+
         <form id="form-chat" class="fila-chat">
           <button id="btn-voz" type="button" class="btn mic" title="Entrar al canal de voz. Con el micro abierto: clic silencia y Shift+clic sale.">🎙️</button>
+          <button id="btn-voz-opciones" type="button" class="btn micro-ajustes" title="Opciones de micrófono" aria-label="Opciones de micrófono">⚙️</button>
           <input id="in-chat" type="text" maxlength="500" placeholder="Escribe un mensaje…" autocomplete="off" />
           <button class="btn primario" type="submit">➤</button>
         </form>

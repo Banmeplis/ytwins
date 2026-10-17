@@ -27,8 +27,9 @@ Abre <http://localhost:3000>.
 Con el servidor arrancado, en otra terminal:
 
 ```bash
-npm test              # todo (protocolo + fuentes + persistencia + base de datos)
-npm run test:protocolo  # 30 pruebas de protocolo de sala
+npm test              # todo (cliente, protocolo, fuentes, persistencia, base de datos)
+npm run test:cliente    # 11 pruebas de los scripts del cliente
+npm run test:protocolo  # 45 pruebas de protocolo de sala
 npm run test:fuentes    # 29 pruebas de fuentes, metadatos y /api/search
 npm run test:persistencia  # 33 pruebas de guardado/carga de salas
 ```
@@ -89,7 +90,8 @@ Sin resultados o caído YouTube → la app lo avisa y puedes pegar el enlace a m
 
 ## Plugins de sala
 
-Se activan/desactivan desde el panel **Plugins** (solo el anfitrión):
+- Se activan/desactivan desde el panel **Plugins** (solo el anfitrión), en el
+  desplegable **✨ Extras**:
 
 | Plugin | Qué hace | Mensajes |
 |---|---|---|
@@ -116,7 +118,20 @@ El botón **🎙️ Voz** de la barra superior abre un canal de audio para la sa
   ofertas cruzadas ni se lían las manos. Si el servidor se reinicia, los que
   estaban en el canal vuelven a entrar solos.
 - Cerrar la pestaña o salir de la sala apaga el micrófono y cierra las conexiones.
-- El anfitrión puede desactivar el plugin **Voz** para una sala.
+- Detecta quién está hablando con el nivel de audio y **centra la voz**: el que
+  habla se oye al frente y los demás se suavizan; si nadie habla, todo vuelve.
+- **Opciones de micrófono** (⚙️ junto al micro):
+  - elegir **qué micrófono** usar (portátil, auriculares…): se cambia en
+    caliente, sin salir del canal;
+  - **sensibilidad**: de "muy alta" a "mínima", para micros que suenan bajito
+    o para evitar que el ruido te detecte como habla;
+  - **volumen del micrófono** (ganancia) del 20 % al 300 %;
+  - **hablar solo mientras mantienes pulsado** 🎙️ (push-to-talk), para no
+    abrir el micro de golpe;
+  - un **medidor de nivel** en vivo, para comprobar que el micro oye y que la
+    sensibilidad está bien puesta.
+  Todo se recuerda en el navegador para la próxima sesión.
+- Si el anfitrión puede desactivar el plugin **Voz** para una sala.
 
 Detalles honestos:
 

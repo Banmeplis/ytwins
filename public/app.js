@@ -498,6 +498,116 @@ function renderPlugins() {
 const vozPluginActivo = () => pluginActivo('voz');
 const hablandoIds = new Set(); // quién tiene el micro abierto en este momento
 
+/* --- Opciones de micrófono ------------------------------------------------ */
+
+/** El slider va de 2 a 30; el número alto hace falta menos voz para detectar que hablas. */
+function etiquetaSensibilidad(v) {
+  if (v <= 3) return 'muy alta';
+  if (v <= 5) return 'alta';
+  if (v <= 9) return 'normal';
+  if (v <= 15) return 'baja';
+  if (v <= 22) return 'muy baja';
+  return 'mínima';
+}
+
+function pintarOpcionesVoz() {
+  const a = window.YTwinsVoz?.ajustes?.() || {};
+  const sens = $('#in-sensibilidad');
+  const gan = $('#in-ganancia');
+  if (sens) sens.value = Math.round((a.sensibilidad ?? 0.06) * 100);
+  if (gan) gan.value = Math.round((a.ganancia ?? 1) * 100);
+  const ptt = $('#in-ptt');
+  if (ptt) ptt.checked = !!a.ptt;
+  $('#val-sensibilidad').textContent = etiquetaSensibilidad(Number(sens?.value));
+  $('#val-ganancia').textContent = `${Math.round((a.ganancia ?? 1) * 100)} %`;
+  pintarMedidor();
+}
+
+/** Rellena el desplegable con los micrófonos reales (el navegador solo los nombra con permiso). */
+async function listarMicros() {
+  const sel = $('#sel-micro');
+  if (!sel) return;
+  const lista = await window.YTwinsVoz?.dispositivos?.() || [];
+  const elegido = window.YTwinsVoz?.ajustes?.().microfonoId || '';
+  sel.innerHTML = '';
+  const porDefecto = document.createElement('option');
+  porDefecto.value = '';
+  porDefecto.textContent = lista.length ? `Por defecto (${lista[0].nombre})` : 'El del sistema';
+  sel.appendChild(porDefecto);
+  for (const d of lista) {
+    const o = document.createElement('option');
+    o.value = d.id;
+    o.textContent = d.nombre;
+    sel.appendChild(o);
+  }
+  sel.value = elegido;
+  if (sel.selectedIndex < 0) sel.value = lista[0]?.id || '';
+}
+
+/** Medidor de nivel: sirve para ver si el micro oye y si el umbral está bien. */
+function pintarMedidor() {
+  const barra = $('#medidor-barra');
+  const texto = $('#medidor-texto');
+  if (!barra) return;
+  const v = window.YTwinsVoz?.estado?.();
+  const nivel = window.YTwinsVoz?.nivel?.() || 0;
+  barra.style.setProperty('--nivel', Math.min(100, Math.round(nivel * 140)) + '%');
+  if (!v?.activa) {
+    texto.textContent = 'micro cerrado';
+    texto.classList.remove('medidor-habla');
+  } else if (v.hablando) {
+    texto.textContent = 'te oigo';
+    texto.classList.add('medidor-habla');
+  } else {
+    texto.textContent = 'silencio';
+    texto.classList.remove('medidor-habla');
+  }
+}
+
+function conectarOpcionesVoz() {
+  $('#btn-voz-opciones').onclick = () => { $('#opciones-voz').open = !$('#opciones-voz').open; };
+
+  $('#sel-micro').onchange = async (e) => {
+    const r = await window.YTwinsVoz.cambiarMicro(e.target.value);
+    if (!r.ok) return toast(r.error, true);
+    window.YTwinsVoz.aplicarAjustes({ microfonoId: e.target.value });
+    toast('Micrófono cambiado');
+  };
+
+  $('#in-sensibilidad').oninput = (e) => {
+    const v = Number(e.target.value) / 100;
+    window.YTwinsVoz.setSensibilidad(v);
+    window.YTwinsVoz.aplicarAjustes({ sensibilidad: v });
+    pintarOpcionesVoz();
+  };
+
+  $('#in-ganancia').oninput = (e) => {
+    const v = Number(e.target.value) / 100;
+    window.YTwinsVoz.setGanancia(v);
+    window.YTwinsVoz.aplicarAjustes({ ganancia: v });
+    pintarOpcionesVoz();
+  };
+
+  $('#in-ptt').onchange = (e) => {
+    window.YTwinsVoz.setPushToTalk(e.target.checked);
+    window.YTwinsVoz.aplicarAjustes({ ptt: e.target.checked });
+    pintarBotonVoz();
+    if (e.target.checked && window.YTwinsVoz.estado().activa) window.YTwinsVoz.hablarTemporal(false);
+  };
+
+  // con "hablar solo mientras pulsado": mantener 🎙️ = hablar
+  const mic = $('#btn-voz');
+  mic.addEventListener('pointerdown', () => {
+    if (window.YTwinsVoz.estado().ptt && window.YTwinsVoz.estado().activa) window.YTwinsVoz.hablarTemporal(true);
+  });
+  for (const ev of ['pointerup', 'pointerleave', 'pointercancel']) {
+    mic.addEventListener(ev, () => {
+      if (window.YTwinsVoz.estado().ptt && window.YTwinsVoz.estado().activa) window.YTwinsVoz.hablarTemporal(false);
+    });
+  }
+  setInterval(pintarMedidor, 250);
+}
+
 /* --- Cuando alguien habla, el vídeo se aparta y la voz se centra --------- */
 const VOL_ATENUADO = 0.2;  // el vídeo se queda al 20 % mientras haya voz
 let volUsuario = 1;        // el volumen que había elegido (se recuerda)
@@ -571,14 +681,18 @@ function pintarBotonVoz() {
   b.title = !vozPluginActivo()
     ? 'El anfitrión ha desactivado la voz en esta sala'
     : v.activa
-      ? `Estás en el canal de voz · ${v.conexiones} conexión(es). Clic para silenciar, Shift+clic para salir.`
+      ? v.ptt
+        ? 'Mantén pulsado para hablar · Shift+clic para salir del canal'
+        : `Estás en el canal de voz · ${v.conexiones} conexión(es). Clic para silenciar, Shift+clic para salir.`
       : 'Entrar al canal de voz con tu micrófono';
 }
 
 async function entrarVoz() {
   const r = await window.YTwinsVoz.activarVoz();
   if (!r.ok) return toast(r.error, true);
+  await listarMicros(); // tras el permiso ya salen los nombres reales
   pintarBotonVoz();
+  pintarOpcionesVoz();
 }
 
 function alternarSalirVoz() {
@@ -851,6 +965,7 @@ $('#btn-voz').onclick = (e) => {
   if (!vozPluginActivo()) return toast('El anfitrión ha desactivado la voz en esta sala.', true);
   if (!v?.activa) return entrarVoz();
   if (e.shiftKey) return alternarSalirVoz(); // salir del canal del todo
+  if (v.ptt) return;                          // con "hablar solo mientras pulsas" manda mantener pulsado
   window.YTwinsVoz.alternarMicro();           // solo silenciar/activar
   pintarBotonVoz();
 };
@@ -965,6 +1080,11 @@ document.addEventListener('keydown', (e) => {
 });
 
 /* ============================ arranque ================================== */
+
+// Opciones de micrófono (se recuerdan entre sesiones)
+conectarOpcionesVoz();
+pintarOpcionesVoz();
+window.YTwinsVoz?.iniciarVoz({ enviar, miId, alCambiar: pintarBotonVoz });
 
 // Latido: mantiene viva la conexión (y evita que el alojamiento duerma la app
 // mientras hay gente en la sala). El servidor responde con un "pong" ignorado.

@@ -32,17 +32,125 @@ const voz = {
   conexiones: new Map(),  // userId -> RTCPeerConnection
   audios: new Map(),      // userId -> HTMLAudioElement
   pendientes: new Map(),  // userId -> candidatos ICE que aún no tienen remoto
-  voces: new Map(),       // clave -> { ctx, analizador, buf } para "está hablando"
+  voces: new Map(),       // clave -> { ctx, analizador } para "está hablando"
   hablantes: new Set(),   // quién tiene la palabra ahora mismo
   hablando: false,
+  // ajustes del micrófono (los elige quien habla)
+  microfonoId: '',        // id del dispositivo elegido ('' = el del sistema)
+  sensibilidad: 0.06,     // umbral de voz (RMS) para considerarte "hablando"
+  ganancia: 1,            // ganancia de entrada (1 = normal)
+  ptt: false,             // hablar solo mientras se mantenga pulsado
+  nivel: 0,               // nivel actual 0..1, para el medidor
+  _nodoGanancia: null,
 };
 
 let enviar = () => {};
 let miId = null;
+let alCambiar = () => {};  // avisa a la interfaz para que repinte el botón
 
-function iniciarVoz({ enviar: env, miId: id }) {
+function iniciarVoz({ enviar: env, miId: id, alCambiar: cb }) {
   enviar = env || enviar;
   miId = id || miId;
+  if (cb) alCambiar = cb;
+}
+
+/* --------------------------- ajustes del micro -------------------------- */
+
+const CLAVE_AJUSTES = 'yr-voz-ajustes';
+const ajustes = (() => {
+  let guardado = {};
+  try { guardado = JSON.parse(localStorage.getItem(CLAVE_AJUSTES) || '{}') || {}; } catch {}
+  return {
+    datos: {
+      microfonoId: typeof guardado.microfonoId === 'string' ? guardado.microfonoId : '',
+      sensibilidad: Number(guardado.sensibilidad) || 0.06,
+      ganancia: Number(guardado.ganancia) || 1,
+      ptt: !!guardado.ptt,
+    },
+    guardar() {
+      try { localStorage.setItem(CLAVE_AJUSTES, JSON.stringify(this.datos)); } catch {}
+    },
+  };
+})();
+Object.assign(voz, ajustes.datos); // se recalled al arrancar
+
+/** Pasa el micrófono por un nodo de ganancia antes de enviarlo. */
+function prepararSalida(stream) {
+  try {
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    if (ctx.state === 'suspended') ctx.resume().catch(() => {});
+    const fuente = ctx.createMediaStreamSource(stream);
+    const ganancia = ctx.createGain();
+    ganancia.gain.value = voz.ganancia;
+    const destino = ctx.createMediaStreamDestination();
+    fuente.connect(ganancia);
+    ganancia.connect(destino);
+    voz._nodoGanancia = { ctx, ganancia };
+    return destino.stream;
+  } catch {
+    return stream; // si falla, se manda el audio tal cual
+  }
+}
+
+/** Micrófonos disponibles (solo los nombra el navegador tras conceder permiso). */
+async function dispositivos() {
+  try {
+    const todos = await navigator.mediaDevices.enumerateDevices();
+    return todos
+      .filter((d) => d.kind === 'audioinput')
+      .map((d, i) => ({ id: d.deviceId, nombre: d.label || `Micrófono ${i + 1}` }));
+  } catch {
+    return [];
+  }
+}
+
+/** Cambia de micrófono en caliente, sin salir del canal. */
+async function cambiarMicro(id) {
+  voz.microfonoId = id || '';
+  if (!voz.activa) { alCambiar(); return { ok: true }; }
+  let nuevo;
+  try {
+    nuevo = await navigator.mediaDevices.getUserMedia({
+      audio: { deviceId: id ? { exact: id } : undefined, echoCancellation: true, noiseSuppression: true, autoGainControl: true },
+      video: false,
+    });
+  } catch {
+    return { ok: false, error: 'No pude abrir ese micrófono.' };
+  }
+  const pista = nuevo.getAudioTracks()[0];
+  pista.enabled = !voz.silenciado;
+  const saliente = prepararSalida(nuevo);
+  // sustituimos la pista en todas las conexiones ya abiertas
+  for (const c of voz.conexiones.values()) {
+    for (const s of c.getSenders()) {
+      if (s.track && s.track.kind === 'audio') { try { await s.replaceTrack(saliente.getAudioTracks()[0]); } catch {} }
+    }
+  }
+  if (voz.streamLocal) for (const t of voz.streamLocal.getTracks()) { try { t.stop(); } catch {} }
+  voz.streamLocal = saliente;
+  medirVoz(nuevo, null);
+  alCambiar();
+  return { ok: true };
+}
+
+function setSensibilidad(v) { voz.sensibilidad = Math.max(0.01, Math.min(0.4, Number(v) || 0.06)); }
+
+function setGanancia(v) {
+  voz.ganancia = Math.max(0.2, Math.min(4, Number(v) || 1));
+  try { voz._nodoGanancia?.ganancia && (voz._nodoGanancia.ganancia.gain.value = voz.ganancia); } catch {}
+}
+
+function setPushToTalk(on) { voz.ptt = !!on; }
+
+/** Con "hablar solo mientras pulsas": enciende/apaga el micro sin salir del canal. */
+function hablarTemporal(on) {
+  if (!voz.activa || !voz.streamLocal) return;
+  for (const t of voz.streamLocal.getAudioTracks()) t.enabled = !!on;
+  const silenciado = !on;
+  if (silenciado === voz.silenciado) return;
+  voz.silenciado = silenciado;
+  enviar({ type: 'voz.mute', silenciado });
+  alCambiar();
 }
 
 /* -------------------------------- micro --------------------------------- */
@@ -68,11 +176,12 @@ async function activarVoz() {
         : 'No encontré ningún micrófono.',
     };
   }
-  voz.streamLocal = stream;
+  voz.streamLocal = prepararSalida(stream);
   voz.activa = true;
   voz.silenciado = false;
-  medirVoz(stream, null);
+  medirVoz(stream, null); // se mide el micrófono original (antes de la ganancia)
   enviar({ type: 'voz.join' });
+  alCambiar();
   return { ok: true };
 }
 
@@ -94,6 +203,8 @@ function cerrarTodo() {
   voz.activa = false;
   voz.silenciado = false;
   voz.hablando = false;
+  voz.nivel = 0;
+  alCambiar();
 }
 
 function alternarMicro() {
@@ -226,12 +337,15 @@ function medirVoz(stream, userId) {
       let suma = 0;
       for (const v of buf) suma += v * v;
       const rms = Math.sqrt(suma / buf.length) / 255;
-      const hablando = rms > 0.06;
-      if (userId) {
+      const hablando = rms > voz.sensibilidad;
+      if (!userId) {
+        voz.nivel = rms; // sirve para el medidor de las opciones
+        if (hablando !== voz.hablando) {
+          voz.hablando = hablando;
+          enviar({ type: 'voz.habla', hablando });
+        }
+      } else {
         marcarHablando(userId, hablando);
-      } else if (hablando !== voz.hablando) {
-        voz.hablando = hablando;
-        enviar({ type: 'voz.habla', hablando });
       }
       requestAnimationFrame(paso);
     };
@@ -261,6 +375,14 @@ function centrarVoz(userId, hablando) {
 window.YTwinsVoz = {
   iniciarVoz, activarVoz, salirVoz, alternarMicro, alMensaje, alEstado,
   centrar: centrarVoz,
+  dispositivos, cambiarMicro, setSensibilidad, setGanancia, setPushToTalk, hablarTemporal,
+  ajustes: () => ({ ...ajustes.datos }),
+  aplicarAjustes: (a) => {
+    Object.assign(ajustes.datos, a || {});
+    ajustes.guardar();
+    Object.assign(voz, a || {});
+  },
+  nivel: () => voz.nivel,
   estado: () => ({
     activa: voz.activa,
     silenciado: voz.silenciado,
@@ -269,6 +391,7 @@ window.YTwinsVoz = {
     audios: voz.audios.size,
     hablando: voz.hablando,
     hablantes: [...voz.hablantes],
+    ptt: voz.ptt,
   }),
 };
 })();
