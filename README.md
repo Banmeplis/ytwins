@@ -1,11 +1,10 @@
 # YTwins — mira con amigos en la misma sala
 
 App web para crear una sala con un código de 6 letras y ver vídeos **sincronizados**:
-el mismo vídeo, en el mismo segundo, con chat, cola, buscador integrado y plugins de sala.
+el mismo vídeo, en el mismo segundo, con chat, voz, cola, buscador integrado y
+plugins de sala. En teléfono y en PC.
 
-> El paquete se llama `ytwins`. La carpeta de este ejemplo se llama
-> `youtube-room` por herencia del proyecto original; puedes renombrarla a
-> `ytwins` sin que nada se rompa (la estructura es la misma).
+Todo el proyecto (carpeta, paquete y despliegue) se llama **ytwins**.
 
 ## Requisitos
 
@@ -15,7 +14,7 @@ el mismo vídeo, en el mismo segundo, con chat, cola, buscador integrado y plugi
 ## Arrancar
 
 ```bash
-cd youtube-room
+cd ytwins
 npm install
 npm start
 ```
@@ -252,7 +251,7 @@ archivos y no ejecutan código de servidor. Las opciones reales:
 La carpeta ya está preparada como repositorio git (con `.gitignore` para que
 no subas `node_modules` ni los datos de las salas).
 
-1. **GitHub Desktop** → *Add local repository* → busca la carpeta `youtube-room`
+1. **GitHub Desktop** → *Add local repository* → busca la carpeta `ytwins`
    → *Create a repository* → *Publish repository* (ponle el nombre `ytwins`).
    Con la web de GitHub también vale, pero hay que subir archivos a mano.
 2. En [render.com](https://render.com) → **New → Blueprint** → **Connect** a
@@ -311,7 +310,7 @@ Te da una URL pública temporal que compartes mientras dure la sesión.
 ## Estructura
 
 ```
-youtube-room/   (o ytwins/, si renombras la carpeta)
+ytwins/
 ├─ server/
 │  ├─ index.js        HTTP + WebSocket, salas, roles, cola, sync, /api/search
 │  ├─ fuentes.js      clasificación de enlaces, metadatos, buscador
