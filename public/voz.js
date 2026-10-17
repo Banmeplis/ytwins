@@ -33,6 +33,7 @@ const voz = {
   audios: new Map(),      // userId -> HTMLAudioElement
   pendientes: new Map(),  // userId -> candidatos ICE que aún no tienen remoto
   voces: new Map(),       // clave -> { ctx, analizador, buf } para "está hablando"
+  hablantes: new Set(),   // quién tiene la palabra ahora mismo
   hablando: false,
 };
 
@@ -181,6 +182,7 @@ function cerrarConexion(userId) {
   if (a) { try { a.pause(); a.srcObject = null; a.remove(); } catch {} }
   voz.audios.delete(userId);
   voz.pendientes.delete(userId);
+  voz.hablantes.delete(userId);
   marcarHablando(userId, false);
 }
 
@@ -239,10 +241,26 @@ function medirVoz(stream, userId) {
 
 function marcarHablando(userId, hablando) {
   document.querySelectorAll(`[data-user="${userId}"]`).forEach((el) => el.classList.toggle('hablando', !!hablando));
+  centrarVoz(userId, hablando);
+}
+
+/**
+ * "Centrar la voz": el que habla se oye al frente y los demás se suavizan un poco.
+ * Cuando nadie habla, todo vuelve a su nivel normal.
+ */
+function centrarVoz(userId, hablando) {
+  voz.hablantes = hablando
+    ? new Set([...voz.hablantes, userId])
+    : new Set([...voz.hablantes].filter((id) => id !== userId));
+  for (const [id, audio] of voz.audios) {
+    // nivel 1 para quien habla, 0.55 para el resto; sin nadie hablando: todos a 1
+    audio.volume = voz.hablantes.size === 0 ? 1 : (voz.hablantes.has(id) ? 1 : 0.55);
+  }
 }
 
 window.YTwinsVoz = {
   iniciarVoz, activarVoz, salirVoz, alternarMicro, alMensaje, alEstado,
+  centrar: centrarVoz,
   estado: () => ({
     activa: voz.activa,
     silenciado: voz.silenciado,
@@ -250,6 +268,7 @@ window.YTwinsVoz = {
     estados: [...voz.conexiones.values()].map((c) => c.connectionState),
     audios: voz.audios.size,
     hablando: voz.hablando,
+    hablantes: [...voz.hablantes],
   }),
 };
 })();

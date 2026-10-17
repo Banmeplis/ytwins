@@ -76,11 +76,16 @@
     pausar() {}
     buscar() {}
     calidad() {}
+    /** Baja/sube el audio del vídeo 0..1. Devuelve false si la fuente no lo permite. */
+    volumen() { return false; }
+    /** Volumen real actual, o null si no se puede leer sincrónicamente. */
+    leerVolumen() { return null; }
     destruir() {
       try { this.p && this.p.destroy && this.p.destroy(); } catch {}
       this.cont.innerHTML = '';
       this.creado = false;
       this.refActual = null;
+      this._vol = 1;
     }
   }
 
@@ -146,6 +151,10 @@
       // mejor esfuerzo: la API de calidad manual de YouTube es "sugerida"
       try { this.p.setPlaybackQuality && this.p.setPlaybackQuality(q); } catch {}
     }
+    volumen(v) {
+      try { this._vol = v; this.p.setVolume(Math.round(v * 100)); return true; } catch { return false; }
+    }
+    leerVolumen() { try { return (this.p.getVolume() || 0) / 100; } catch { return null; } }
   }
 
   /* ----------------------------------------------------------- Vimeo */
@@ -219,6 +228,12 @@
     buscar(t) { this.p && this.p.setCurrentTime(t).catch(() => {}); }
     tiempo() { return this._t || 0; }
     duracion() { return this._d || 0; }
+    volumen(v) { this.p && this.p.setVolume(Math.max(0, Math.min(1, v))).catch(() => {}); this._vol = v; return true; }
+    leerVolumen() {
+      // Vimeo lo devuelve como promesa: lo leemos cuando llega
+      if (this.p) this.p.getVolume().then((v) => { this._vol = v; }).catch(() => {});
+      return null;
+    }
   }
 
   /* ----------------------------------------------------- Dailymotion
@@ -252,6 +267,8 @@
         'ui-start-screen-rel': '0',
         start: String(Math.max(0, Math.floor(this._t || 0))),
       });
+      // su iframe tampoco acepta volumen en caliente: se lo pasamos al montar
+      if (this._vol !== undefined && this._vol < 1) q.set('volume', String(Math.round(this._vol * 100)));
       const f = document.createElement('iframe');
       f.src = 'https://geo.dailymotion.com/player.html?' + q.toString();
       f.allow = 'autoplay; fullscreen; picture-in-picture';
@@ -305,6 +322,12 @@
     }
     duracion() { return this._d || 0; }
     listo() { return this.creado && !!this._iframe; }
+    volumen(v) {
+      // no hay API en caliente: se aplica al recrear el iframe
+      this._vol = Math.max(0, Math.min(1, v));
+      return true;
+    }
+    leerVolumen() { return this._vol ?? 1; }
     destruir() {
       this.cont.innerHTML = '';
       this.creado = false;
@@ -348,6 +371,8 @@
     buscar(t) { try { this.p.currentTime = t; } catch {} }
     tiempo() { return this.p ? this.p.currentTime || 0 : 0; }
     duracion() { return this.p && isFinite(this.p.duration) ? this.p.duration : 0; }
+    volumen(v) { try { this.p.volume = Math.max(0, Math.min(1, v)); this._vol = v; return true; } catch { return false; } }
+    leerVolumen() { return this.p ? this.p.volume : null; }
   }
 
   const CREADORES = { youtube: RepYouTube, vimeo: RepVimeo, dailymotion: RepDM, directo: RepDirecto };

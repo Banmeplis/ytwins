@@ -168,6 +168,8 @@ function cerrar() {
   ultimaEncuestaVista = null;
   ultimoLocal = null;
   refReproducido = null;
+  hablandoIds.clear();
+  pintarAvisoVoz(false);
   window.YTwinsVoz?.salirVoz(); // apaga el micro y cierra conexiones al salir
   if (rep) { rep.destruir(); rep = null; repFuente = null; }
   if (ws) { ws.onclose = null; try { ws.close(); } catch {} ws = null; }
@@ -324,6 +326,14 @@ setInterval(() => {
   const servidor = pb.position + (pb.playing ? (Date.now() - pb.updatedAt) / 1000 : 0);
 
   if (repListo()) {
+    // recuerda el volumen que eligió el usuario (por si lo cambia a mano)
+    if (!hablandoIds.size && typeof rep.leerVolumen === 'function') {
+      const v = rep.leerVolumen();
+      if (v !== null && v !== undefined && Math.abs(v - volAplicado) > 0.01) {
+        volUsuario = v;
+        volAplicado = v;
+      }
+    }
     const local = rep.tiempo();
     desfaseActual = Math.abs(local - servidor);
     const salto = ultimoLocal === null ? 0 : Math.abs(local - ultimoLocal);
@@ -488,11 +498,66 @@ function renderPlugins() {
 const vozPluginActivo = () => pluginActivo('voz');
 const hablandoIds = new Set(); // quién tiene el micro abierto en este momento
 
+/* --- Cuando alguien habla, el vídeo se aparta y la voz se centra --------- */
+const VOL_ATENUADO = 0.2;  // el vídeo se queda al 20 % mientras haya voz
+let volUsuario = 1;        // el volumen que había elegido (se recuerda)
+let volAplicado = 1;       // el que realmente está sonando ahora
+let volTemporizador = null;
+
+/** Sube o baja el volumen del vídeo con un fundido corto (sin chasquidos). */
+function fundirVolumen(objetivo, ms = 260) {
+  if (!rep || typeof rep.volumen !== 'function') return;
+  if (volTemporizador) clearTimeout(volTemporizador);
+  const desde = volAplicado;
+  const pasos = 6;
+  if (Math.abs(objetivo - desde) < 0.01) {
+    volAplicado = objetivo;
+    return rep.volumen(objetivo);
+  }
+  let i = 0;
+  const paso = () => {
+    i++;
+    const v = desde + (objetivo - desde) * (i / pasos);
+    volAplicado = v;
+    try { rep.volumen(v); } catch {}
+    if (i < pasos) volTemporizador = setTimeout(paso, ms / pasos);
+  };
+  paso();
+}
+
+/** El vídeo solo se atenúa si está sonando; al callarse vuelve a su volumen. */
+function atenuarVideo() {
+  const hayVoz = hablandoIds.size > 0;
+  const sonando = !!estado?.playback?.playing && repListo();
+  const objetivo = hayVoz && sonando ? Math.min(volUsuario, VOL_ATENUADO) : volUsuario;
+  if (Math.abs(objetivo - volAplicado) > 0.01) fundirVolumen(objetivo);
+  pintarAvisoVoz(hayVoz && sonando);
+}
+
+/** Chipe sobre el vídeo: "Ana está hablando · vídeo al 20%". */
+function pintarAvisoVoz(atenuado) {
+  const el = $('#aviso-voz');
+  if (!el) return;
+  if (!atenuado) { el.hidden = true; return; }
+  const nombres = [...hablandoIds]
+    .map((id) => estado?.users.find((u) => u.id === id)?.name)
+    .filter(Boolean);
+  const quien = nombres.length === 0
+    ? 'Alguien está hablando'
+    : nombres.length === 1
+      ? `${nombres[0]} está hablando`
+      : `${nombres.length} personas hablan`;
+  el.hidden = false;
+  el.textContent = `🎙️ ${quien} · vídeo al ${Math.round(VOL_ATENUADO * 100)}%`;
+}
+
 /** "Está hablando": se guarda en un Set para que el resaltado sobreviva al redibujado. */
 function marcarHablando(userId, hablando) {
   if (hablando) hablandoIds.add(userId);
   else hablandoIds.delete(userId);
   document.querySelectorAll(`[data-user="${userId}"]`).forEach((el) => el.classList.toggle('hablando', !!hablando));
+  window.YTwinsVoz?.centrar(userId, hablando); // centra el que habla
+  atenuarVideo();
 }
 
 function pintarBotonVoz() {
@@ -776,6 +841,7 @@ $('#in-nombre').addEventListener('keydown', (e) => { if (e.key === 'Enter') $('#
 $('#btn-salir').onclick = () => {
   sessionStorage.removeItem('yr-ultima');
   window.YTwinsVoz?.salirVoz();
+  hablandoIds.clear();
   cerrar();
 };
 
