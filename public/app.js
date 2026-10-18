@@ -238,6 +238,8 @@ function aplicarEstado(soloSync = false) {
 
   if (!hayVideo) {
     refReproducido = null;
+    // el iframe se quedaba sonando aunque la pantalla dijera "sin reproducción"
+    if (rep) { try { rep.pausar(); } catch {} }
     pintarTiempo();
     return;
   }
@@ -263,7 +265,10 @@ function aplicarEstado(soloSync = false) {
   // 2. aplicar play/pausa del servidor (salvo que aquí acabemos de actuar)
   if (!accionNueva && repListo()) {
     const st = rep.estado;
-    if (pb.playing && (st === 'paused' || st === 'idle' || st === 'ended')) {
+    // OJO: si está en 'ended' NO se reinicia. Al acabar pedimos el siguiente
+    // vídeo; volver a llamar a reproducir aquí arrancaba el final otra vez y se
+    // oía la canción repetida con la imagen ya detenida.
+    if (pb.playing && (st === 'paused' || st === 'idle')) {
       ultimaAccionLocal = ahora;
       rep.reproducir();
     } else if (!pb.playing && st === 'playing') {
