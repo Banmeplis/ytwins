@@ -76,6 +76,8 @@
     pausar() {}
     buscar() {}
     calidad() {}
+    /** El contenedor cambió de tamaño (plegar la lista): se reajusta. */
+    redimensionar() {}
     /** Baja/sube el audio del vídeo 0..1. Devuelve false si la fuente no lo permite. */
     volumen() { return false; }
     /** Volumen real actual, o null si no se puede leer sincrónicamente. */
@@ -155,6 +157,15 @@
       try { this._vol = v; this.p.setVolume(Math.round(v * 100)); return true; } catch { return false; }
     }
     leerVolumen() { try { return (this.p.getVolume() || 0) / 100; } catch { return null; } }
+    redimensionar() {
+      try {
+        const w = this.cont.clientWidth, h = this.cont.clientHeight;
+        if (!w || !h || this.p.getIframe?.()?.style) {
+          this.p.getIframe && (this.p.getIframe().style.width = '100%');
+        }
+        if (this.p.getSize) this.p.getSize().then((s) => { if (s && s.width !== w) this.p.setSize(w, h); }).catch(() => {});
+      } catch {}
+    }
   }
 
   /* ----------------------------------------------------------- Vimeo */

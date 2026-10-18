@@ -103,6 +103,13 @@
     <!-- Columna de la lista: al lado del reproductor para elegir qué ver -->
     <aside class="col-lista">
       <div class="panel panel-buscar">
+        <div class="panel-cab">
+          <span class="panel-titulo">🍿 Qué ver</span>
+          <button id="btn-plegar-lista" class="plegar" title="Plegar la lista y agrandar el vídeo"
+                  aria-expanded="true" aria-controls="cuerpo-lista">▾</button>
+        </div>
+
+        <div id="cuerpo-lista">
         <div class="pestanas">
           <button class="pestana on" data-pestana="buscar">🔍 Buscar</button>
           <button class="pestana" data-pestana="cola">Cola <span id="cola-contador" class="contador">0</span></button>
@@ -123,6 +130,7 @@
             <button class="btn primario" type="submit">Añadir</button>
           </form>
           <ul id="lista-cola" class="lista"></ul>
+        </div>
         </div>
       </div>
     </aside>

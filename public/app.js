@@ -1139,6 +1139,31 @@ document.querySelectorAll('.pestana').forEach((b) => {
   };
 });
 
+/* --------------------------- plegar la lista ---------------------------- */
+const CLAVE_PLEGADA = 'yr-lista-plegada';
+
+/** Plegar la lista de vídeos le deja todo ese espacio al reproductor. */
+function plegarLista(plegada) {
+  $('.rejilla').classList.toggle('lista-plegada', plegada);
+  const b = $('#btn-plegar-lista');
+  b.setAttribute('aria-expanded', String(!plegada));
+  b.title = plegada ? 'Desplegar la lista de vídeos' : 'Plegar la lista y agrandar el vídeo';
+  try { localStorage.setItem(CLAVE_PLEGADA, plegada ? '1' : '0'); } catch {}
+  // el reproductor cambia de tamaño: le damos tiempo a reajustarse
+  clearTimeout(plegarTemporizador);
+  plegarTemporizador = setTimeout(() => {
+    try { if (rep && typeof rep.redimensionar === 'function') rep.redimensionar(); } catch {}
+  }, 280);
+}
+let plegarTemporizador = null;
+
+$('#btn-plegar-lista').onclick = () => plegarLista(!$('.rejilla').classList.contains('lista-plegada'));
+
+// se recuerda entre visitas: si la plegaste, sigue plegada
+try {
+  if (localStorage.getItem(CLAVE_PLEGADA) === '1') plegarLista(true);
+} catch {}
+
 $('#btn-play').onclick = () => {
   if (!puedoControlar() || !estado?.playback.ref) return;
   const pb = estado.playback;
