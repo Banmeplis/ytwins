@@ -114,11 +114,7 @@ h1,h2{margin:0}
 .badge.ctrl{background:#12304a;color:#8cc7ff}
 
 .chat-panel{display:flex;flex-direction:column;min-height:380px}
-.chat{flex:1;overflow-y:auto;max-height:480px;display:flex;flex-direction:column;gap:7px;padding-right:4px}
-.msg{font-size:14px;word-break:break-word}
-.msg .autor{color:var(--acento2);font-weight:600}
-.msg .hora{color:#5f6b7f;font-size:11px;margin-right:7px}
-.msg.sys{color:var(--dim);font-style:italic;font-size:13px}
+.chat{flex:1;overflow-y:auto;max-height:480px;display:flex;flex-direction:column;gap:8px;padding-right:4px}
 .fila-chat{margin-top:10px}
 
 .toast{position:fixed;left:50%;bottom:26px;transform:translateX(-50%);background:#232a36;
@@ -233,7 +229,50 @@ details.extras summary:hover{color:var(--txt)}
 .poll-btn span{position:relative;z-index:1;display:flex;justify-content:space-between;gap:10px}
 .poll-meta{color:var(--dim);font-size:12px;margin:6px 0}
 
-/* --------------------------------- notas -------------------------------- */
+/* ------------------ "está hablando": ondas y burbujas de chat ------------ */
+.msg{display:flex;flex-direction:column;max-width:82%;gap:2px}
+.msg .autor{font-size:12px;color:var(--acento2);font-weight:600}
+.msg .texto{background:var(--panel2);border:1px solid var(--line);border-radius:14px;
+  padding:8px 12px;font-size:14px;word-break:break-word;line-height:1.45}
+.msg .hora{font-size:10px;color:#5f6b7f;align-self:flex-end}
+.msg.mio{align-self:flex-end;align-items:flex-end}
+.msg.mio .texto{background:#3a1620;border-color:#55222e}
+.msg.mio .autor{color:#ff9aa9}
+.msg.otro{align-self:flex-start;align-items:flex-start}
+.msg.otro .hora{align-self:flex-start}
+.msg.seguido .autor,.msg.seguido .hora{display:none}
+.msg.seguido{margin-top:-4px}
+
+/* ondas de voz: anillos que salen del micrófono de quien habla */
+li.hablando{position:relative}
+li.hablando .badge.mic{position:relative;animation:latido 1.4s ease-out infinite}
+li.hablando .badge.mic::after{
+  content:'';position:absolute;left:50%;top:50%;width:130%;height:130%;
+  border:2px solid rgba(57,217,138,.75);border-radius:50%;
+  transform:translate(-50%,-50%);animation:onda 1.4s ease-out infinite;
+  pointer-events:none;box-sizing:border-box}
+li.hablando .badge.mic::before{
+  content:'';position:absolute;left:50%;top:50%;width:160%;height:160%;
+  border:1px solid rgba(57,217,138,.45);border-radius:50%;
+  transform:translate(-50%,-50%);animation:onda 1.4s ease-out .45s infinite;
+  pointer-events:none;box-sizing:border-box}
+@keyframes onda{
+  0%{transform:translate(-50%,-50%) scale(.6);opacity:.9}
+  100%{transform:translate(-50%,-50%) scale(1.5);opacity:0}
+}
+@keyframes latido{0%,100%{filter:brightness(1)}50%{filter:brightness(1.45)}}
+/* aviso sobre el vídeo: el ecualizador */
+.aviso-voz .ecua{display:inline-flex;align-items:flex-end;gap:2px;height:11px;vertical-align:-1px;margin-right:4px}
+.aviso-voz .ecua i{width:2px;height:100%;background:#7ee2a8;border-radius:1px;
+  animation:salta .9s ease-in-out infinite}
+.aviso-voz .ecua i:nth-child(2){animation-delay:.15s}
+.aviso-voz .ecua i:nth-child(3){animation-delay:.3s}
+.aviso-voz .ecua i:nth-child(4){animation-delay:.45s}
+@keyframes salta{0%,100%{transform:scaleY(.35)}50%{transform:scaleY(1)}}
+/* voz que no llega */
+li.voz-rota .badge.mic{background:#3a1d24;color:#ff9aa9}
+li.voz-rota .titulo{color:#ff9aa9}
+
 .notas{background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:10px 12px;
   font-size:14px;white-space:pre-wrap;max-height:180px;overflow:auto;color:var(--txt)}
 .notas:empty::before{content:'Sin notas todavía';color:var(--dim)}

@@ -663,7 +663,8 @@ function pintarAvisoVoz(atenuado) {
       ? `${nombres[0]} está hablando`
       : `${nombres.length} personas hablan`;
   el.hidden = false;
-  el.textContent = `🎙️ ${quien} · vídeo al ${Math.round(VOL_ATENUADO * 100)}%`;
+  el.innerHTML = '<span class="ecua"><i></i><i></i><i></i><i></i></span>';
+  el.append(`${quien} · vídeo al ${Math.round(VOL_ATENUADO * 100)}%`);
 }
 
 /** "Está hablando": se guarda en un Set para que el resaltado sobreviva al redibujado. */
@@ -914,13 +915,28 @@ function renderChat() {
   const box = $('#lista-chat');
   const cercaDelFondo = box.scrollHeight - box.scrollTop - box.clientHeight < 70;
   box.innerHTML = '';
+  let ultimoAutor = null;
   for (const m of estado.chat) {
+    const mio = m.userId === yoId;
     const div = document.createElement('div');
-    div.className = 'msg';
-    const hora = new Date(m.at).toLocaleTimeString('es', { hour: '2-digit', minute: '2-digit' });
-    div.innerHTML = `<span class="hora">${hora}</span><span class="autor"></span>`;
-    div.querySelector('.autor').textContent = `${m.name}: `;
-    div.insertAdjacentText('beforeend', m.text);
+    div.className = 'msg' + (mio ? ' mio' : ' otro');
+    // agrupa los mensajes seguidos del mismo autor (como una conversación)
+    if (m.userId === ultimoAutor) div.classList.add('seguido');
+    ultimoAutor = m.userId;
+
+    const autor = document.createElement('span');
+    autor.className = 'autor';
+    autor.textContent = m.name;
+
+    const texto = document.createElement('span');
+    texto.className = 'texto';
+    texto.textContent = m.text;
+
+    const hora = document.createElement('span');
+    hora.className = 'hora';
+    hora.textContent = new Date(m.at).toLocaleTimeString('es', { hour: '2-digit', minute: '2-digit' });
+
+    div.append(autor, texto, hora);
     box.appendChild(div);
   }
   if (cercaDelFondo || estado.chat.length <= 1) box.scrollTop = box.scrollHeight;
@@ -1089,7 +1105,29 @@ document.addEventListener('keydown', (e) => {
 // Opciones de micrófono (se recuerdan entre sesiones)
 conectarOpcionesVoz();
 pintarOpcionesVoz();
-window.YTwinsVoz?.iniciarVoz({ enviar, miId, alCambiar: pintarBotonVoz });
+const conexionesVoz = new Map(); // userId -> 'fallo' (voz que no llega)
+
+/** Marca en la lista a quien no se le oye, para que se entienda la causa. */
+function pintarVozFallida() {
+  for (const li of document.querySelectorAll('#lista-users li')) {
+    li.classList.toggle('voz-rota', conexionesVoz.has(li.dataset.user));
+  }
+}
+
+window.YTwinsVoz?.iniciarVoz({
+  enviar, miId,
+  alCambiar: pintarBotonVoz,
+  alAvisar: (userId, aviso) => {
+    const nombre = estado?.users?.find((u) => u.id === userId)?.name || 'alguien';
+    if (aviso === 'fallo') {
+      conexionesVoz.set(userId, 'fallo');
+      toast(`No se pudo conectar la voz con ${nombre}: casi siempre es la red (prueba con datos móviles o otro wifi).`, true);
+    } else if (aviso === 'ok') {
+      conexionesVoz.delete(userId);
+    }
+    pintarVozFallida();
+  },
+});
 
 // Latido: mantiene viva la conexión (y evita que el alojamiento duerma la app
 // mientras hay gente en la sala). El servidor responde con un "pong" ignorado.

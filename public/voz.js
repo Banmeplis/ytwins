@@ -23,6 +23,7 @@
 const ICE_SERVIDORES = [
   { urls: 'stun:stun.l.google.com:19302' },
   { urls: 'stun:stun1.l.google.com:19302' },
+  { urls: 'stun:stun.cloudflare.com:3478' },
 ];
 
 const voz = {
@@ -47,11 +48,13 @@ const voz = {
 let enviar = () => {};
 let miId = null;
 let alCambiar = () => {};  // avisa a la interfaz para que repinte el botón
+let alAviso = () => {};   // avisa de problemas de conexión (fallo / recuperada)
 
-function iniciarVoz({ enviar: env, miId: id, alCambiar: cb }) {
+function iniciarVoz({ enviar: env, miId: id, alCambiar: cb, alAviso: av }) {
   enviar = env || enviar;
   miId = id || miId;
   if (cb) alCambiar = cb;
+  if (av) alAviso = av;
 }
 
 /* --------------------------- ajustes del micro -------------------------- */
@@ -74,20 +77,42 @@ const ajustes = (() => {
 })();
 Object.assign(voz, ajustes.datos); // se recalled al arrancar
 
-/** Pasa el micrófono por un nodo de ganancia antes de enviarlo. */
-function prepararSalida(stream) {
+/**
+ * Pasa el micrófono por un nodo de ganancia antes de enviarlo.
+ *
+ * OJO: un AudioContext en PAUSA hace que su MediaStreamDestination devuelva
+ * silencio, y el otro dispositivo no oye nada aunque el micro esté "activado".
+ * Por eso esperamos a que arranque de verdad y, si no arranca, mandamos el
+ * audio tal cual (sin ganancia) antes que mandarlo mudo.
+ */
+async function prepararSalida(stream) {
   try {
     const ctx = new (window.AudioContext || window.webkitAudioContext)();
-    if (ctx.state === 'suspended') ctx.resume().catch(() => {});
+    if (ctx.state !== 'running') {
+      await ctx.resume().catch(() => {});
+      // un poco de margen: resume() es asíncrono
+      for (let i = 0; i < 6 && ctx.state !== 'running'; i++) await new Promise((r) => setTimeout(r, 50));
+    }
+    if (ctx.state !== 'running') {
+      voz._sinGanancia = true;
+      return stream;
+    }
     const fuente = ctx.createMediaStreamSource(stream);
     const ganancia = ctx.createGain();
     ganancia.gain.value = voz.ganancia;
     const destino = ctx.createMediaStreamDestination();
     fuente.connect(ganancia);
     ganancia.connect(destino);
+    const pista = destino.stream.getAudioTracks()[0];
+    if (!pista || pista.readyState !== 'live') {
+      voz._sinGanancia = true;
+      return stream;
+    }
     voz._nodoGanancia = { ctx, ganancia };
+    voz._sinGanancia = false;
     return destino.stream;
   } catch {
+    voz._sinGanancia = true;
     return stream; // si falla, se manda el audio tal cual
   }
 }
@@ -119,7 +144,7 @@ async function cambiarMicro(id) {
   }
   const pista = nuevo.getAudioTracks()[0];
   pista.enabled = !voz.silenciado;
-  const saliente = prepararSalida(nuevo);
+  const saliente = await prepararSalida(nuevo);
   // sustituimos la pista en todas las conexiones ya abiertas
   for (const c of voz.conexiones.values()) {
     for (const s of c.getSenders()) {
@@ -176,13 +201,13 @@ async function activarVoz() {
         : 'No encontré ningún micrófono.',
     };
   }
-  voz.streamLocal = prepararSalida(stream);
+  voz.streamLocal = await prepararSalida(stream);
   voz.activa = true;
   voz.silenciado = false;
   medirVoz(stream, null); // se mide el micrófono original (antes de la ganancia)
   enviar({ type: 'voz.join' });
   alCambiar();
-  return { ok: true };
+  return { ok: true, sinGanancia: voz._sinGanancia };
 }
 
 function salirVoz() {
@@ -233,7 +258,13 @@ function conexion(userId) {
     medirVoz(e.streams[0], userId);
   };
   c.onconnectionstatechange = () => {
-    if (c.connectionState === 'failed' || c.connectionState === 'closed') voz.conexiones.delete(userId);
+    // diagnóstico: si la voz no llega, se avisa en vez de quedarse en silencio
+    if (c.connectionState === 'failed') {
+      voz.conexiones.delete(userId);
+      alAviso(userId, 'fallo');
+    } else if (c.connectionState === 'connected') {
+      alAviso(userId, 'ok');
+    }
   };
   if (voz.streamLocal) for (const t of voz.streamLocal.getTracks()) c.addTrack(t, voz.streamLocal);
   voz.conexiones.set(userId, c);
