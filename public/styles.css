@@ -51,9 +51,26 @@ h1,h2{margin:0}
 /* ------------------------------- SALA ----------------------------------- */
 .barra{position:sticky;top:0;z-index:5;display:flex;justify-content:space-between;gap:12px;
   padding:12px 18px;background:rgba(13,15,20,.85);backdrop-filter:blur(10px);border-bottom:1px solid var(--line)}
-.barra-izq,.barra-der{display:flex;gap:10px;align-items:center}
-.rejilla{display:grid;grid-template-columns:minmax(0,1fr) 340px;gap:18px;padding:18px;max-width:1500px;margin:0 auto}
-@media (max-width:980px){.rejilla{grid-template-columns:1fr}}
+/* min-width:0 para que el nombre de la sala pueda encogerse y la barra no desborde */
+.barra-izq,.barra-der{display:flex;gap:10px;align-items:center;min-width:0}
+.barra-izq{flex:1 1 auto;overflow:hidden}
+/* el chip del código se recorta con puntos suspensivos si no cabe */
+.barra-izq>*{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.barra-der{flex:0 0 auto}
+/* Pantalla ancha: reproductor grande + lista al lado + sala/chat a la derecha.
+   El reproductor se lleva el espacio sobrante (prioridad), las otras dos son fijas. */
+.rejilla{display:grid;grid-template-columns:minmax(0,1fr) 300px 330px;gap:16px;padding:18px;max-width:1720px;margin:0 auto}
+@media (max-width:1279px){
+  .rejilla{grid-template-columns:minmax(0,1fr) 300px;max-width:1100px}
+  /* la sala (participantes + chat) pasa debajo, a lo ancho */
+  .col-lateral{grid-column:1/-1;display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:16px;align-items:start}
+  .col-lateral>.extras{grid-column:1/-1}
+  .col-lateral .panel{margin-bottom:0}
+}
+@media (max-width:980px){
+  .col-lateral{display:block}
+  .col-lateral>.panel{margin-bottom:16px}
+}
 
 .player-marco{position:relative;aspect-ratio:16/9;background:#000;border-radius:14px;overflow:hidden;
   border:1px solid var(--line)}
@@ -64,8 +81,8 @@ h1,h2{margin:0}
 .player-vacio p{margin:0;font-size:20px;color:#5d6a80}
 
 .controles{display:flex;gap:10px;align-items:center;padding:12px 4px;flex-wrap:wrap}
-.controles input[type=range]{flex:1;min-width:140px;accent-color:var(--acento)}
-.tiempo{font-variant-numeric:tabular-nums;color:var(--dim);font-size:13px;min-width:96px}
+.controles input[type=range]{flex:1;min-width:0;min-height:0;accent-color:var(--acento)}
+.tiempo{font-variant-numeric:tabular-nums;color:var(--dim);font-size:13px;min-width:0;white-space:nowrap}
 .aviso-control{font-size:12px;color:var(--dim);background:var(--panel2);padding:6px 10px;border-radius:8px}
 .estado-sync{font-size:12px;color:var(--dim);margin:0 4px 14px}
 .estado-sync.ok{color:var(--ok)}
@@ -76,7 +93,9 @@ h1,h2{margin:0}
 .contador{background:var(--panel2);border-radius:999px;padding:1px 8px;font-size:12px;margin-left:6px}
 
 .fila-cola,.fila-chat{display:flex;gap:8px}
-.fila-cola input,.fila-chat input{flex:1;padding:11px 13px;background:var(--panel2);
+/* sin min-width:0 un input no baja del tamaño que quiere el navegador y
+   empuja fuera del div a los botones de al lado */
+.fila-cola input,.fila-chat input{flex:1;min-width:0;padding:11px 13px;background:var(--panel2);
   border:1px solid var(--line);border-radius:10px;outline:none}
 .fila-cola input:focus,.fila-chat input:focus{border-color:var(--acento2)}
 
@@ -105,6 +124,15 @@ h1,h2{margin:0}
 .toast{position:fixed;left:50%;bottom:26px;transform:translateX(-50%);background:#232a36;
   border:1px solid var(--line);padding:11px 18px;border-radius:10px;z-index:50;box-shadow:0 12px 30px rgba(0,0,0,.45)}
 .toast.err{border-color:#5a2530;color:#ff9aa9}
+
+/* ------------------------- columna de la lista -------------------------- */
+.col-lista{min-width:0}
+.col-lista .panel{margin-bottom:0;position:sticky;top:78px}
+/* la lista no crece sin fin: scrollea en su propia caja */
+.col-lista .pestana-vista{display:flex;flex-direction:column;max-height:min(64vh,620px)}
+.col-lista .lista{overflow-y:auto;min-height:0;padding-right:4px}
+.col-lista .pestanas{flex:0 0 auto}
+.col-lista .fila-cola,.col-lista .aviso{flex:0 0 auto}
 
 /* ------------------------------ pestañas -------------------------------- */
 .pestanas{display:flex;gap:8px;margin-bottom:12px}
@@ -166,9 +194,9 @@ details.extras summary:hover{color:var(--txt)}
 .opcion i{font-style:normal;color:var(--txt);font-variant-numeric:tabular-nums}
 .opcion.fila{display:flex;gap:9px;align-items:flex-start}
 .opcion.fila input{width:18px;height:18px;margin-top:1px;flex:0 0 auto;accent-color:var(--acento)}
-.opcion select{width:100%;padding:9px 10px;background:var(--panel);color:var(--txt);
+.opcion select{width:100%;min-width:0;padding:9px 10px;background:var(--panel);color:var(--txt);
   border:1px solid var(--line);border-radius:8px;outline:none}
-.opcion input[type=range]{width:100%;accent-color:var(--acento2)}
+.opcion input[type=range]{width:100%;min-width:0;max-width:100%;margin:0;accent-color:var(--acento2)}
 .medidor{display:flex;align-items:center;gap:9px;font-size:12px;color:var(--dim)}
 .medidor-barra{flex:1;height:8px;border-radius:999px;background:#0b0e14;border:1px solid var(--line);overflow:hidden;position:relative}
 .medidor-barra::after{content:'';position:absolute;inset:0;width:var(--nivel,0%);
@@ -194,7 +222,8 @@ details.extras summary:hover{color:var(--txt)}
 
 /* ------------------------------ encuestas -------------------------------- */
 .form-encuesta{display:flex;flex-direction:column;gap:8px;margin-top:10px}
-.form-encuesta input{padding:10px 12px;background:var(--panel2);border:1px solid var(--line);border-radius:10px;outline:none}
+.form-encuesta input{padding:10px 12px;background:var(--panel2);border:1px solid var(--line);
+  border-radius:10px;outline:none;min-width:0;width:100%}
 .poll-op{display:flex;flex-direction:column;gap:4px;margin-bottom:8px}
 .poll-btn{position:relative;text-align:left;padding:9px 12px;border:1px solid var(--line);border-radius:10px;
   background:var(--panel2);cursor:pointer;overflow:hidden}
@@ -208,7 +237,7 @@ details.extras summary:hover{color:var(--txt)}
 .notas{background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:10px 12px;
   font-size:14px;white-space:pre-wrap;max-height:180px;overflow:auto;color:var(--txt)}
 .notas:empty::before{content:'Sin notas todavía';color:var(--dim)}
-.notas-edit{width:100%;margin-top:8px;background:var(--panel2);border:1px solid var(--line);
+.notas-edit{width:100%;min-width:0;margin-top:8px;background:var(--panel2);border:1px solid var(--line);
   border-radius:10px;padding:10px 12px;color:inherit;resize:vertical;outline:none}
 
 /* --------------------------- autoplay bloqueado ------------------------- */
@@ -246,16 +275,20 @@ details.extras summary:hover{color:var(--txt)}
     padding-bottom:calc(24px + env(safe-area-inset-bottom));
   }
   /* display:contents deja que los hijos de cada columna se reordenen entre sí */
-  .col-video,.col-lateral{display:contents}
-  .rejilla>.col-video>.panel-buscar{order:0}    /* buscador arriba del todo */
+  .col-video,.col-lateral,.col-lista{display:contents}
   .rejilla>.col-video>.player-marco{order:1}
   .rejilla>.col-video>.controles{order:2}
   .rejilla>.col-video>.estado-sync{order:3}
-  .rejilla>.col-video>.barra-reacciones{order:4}
-  .rejilla>.col-lateral>.chat-panel{order:5}
+  .rejilla>.col-lista>.panel-buscar{order:4}    /* lista justo bajo el vídeo */
+  .rejilla>.col-video>.barra-reacciones{order:5}
+  .rejilla>.col-lateral>.chat-panel{order:6}
   .rejilla>.col-lateral>.panel-usuarios{order:7} /* participantes */
   .rejilla>.col-lateral>.extras{order:8}
-  .panel{margin-bottom:0}
+  .rejilla .col-lista .panel,.rejilla .panel{margin-bottom:0}
+  /* sin "sticky" en una sola columna: estorbaría al hacer scroll */
+  .col-lista .panel{position:static}
+  /* pero la lista sí se acota, si no empuja el chat 1500 px hacia abajo */
+  .col-lista .pestana-vista{max-height:58vh}
 }
 
 /* barra superior: compacta y sin partirse en dos líneas */
@@ -301,11 +334,15 @@ details.extras summary:hover{color:var(--txt)}
   .thumb{width:88px;height:52px}
 }
 
-/* móvil en horizontal (p.ej. viendo el vídeo): la rejilla en dos columnas */
+/* móvil en horizontal (p.ej. viendo el vídeo): vídeo + lista al lado,
+   y la sala (participantes + chat) debajo a lo ancho */
 @media (min-width:620px) and (max-width:980px) and (orientation:landscape){
   .rejilla{display:grid;grid-template-columns:minmax(0,1fr) 300px;align-items:start}
-  .col-video{display:flex;flex-direction:column;gap:12px}
-  .col-lateral{display:flex;flex-direction:column;gap:12px}
+  .col-video,.col-lista{display:flex;flex-direction:column;gap:12px}
+  .col-lateral{display:grid;grid-column:1/-1;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:12px}
+  .col-lateral>.extras{grid-column:1/-1}
+  .col-lista .panel{position:static}
+  .col-lista .pestana-vista{max-height:46vh}
   .rejilla>*{order:0 !important}
 }
 

@@ -358,6 +358,33 @@ Endpoints: `GET /api/search?q=…`, `GET /api/health`.
 - Pendiente: calidad automática medida con `getBytesReceived` y poder elegir
   quién "manda la voz" si molesta el eco.
 
+### Pendiente: iniciar sesión con YouTube
+
+**Pedido por el usuario, sin hacer todavía.** El plan es:
+
+- Botón **"Entrar con YouTube"** en el lobby y en Extras, usando OAuth 2.0 de
+  Google (alcance mínimo: solo saber quién eres, `openid email profile`).
+- El token **no se guarda**: se usa solo para tu avatar y tu nombre, igual que
+  ahora, pero sin tener que escribirlos a mano.
+- Guardar las salas en la cuenta (p. ej. "mis salas") en vez de solo en el
+  navegador.
+- Opcional: con la sesión abierta, YouTube a veces deja reproducir vídeos
+  privados con restricción de edad que el reproductor incrustado bloquea.
+  Ojo: el reproductor incrustado **no** hereda esa sesión; haría falta otra
+  vía, así que probablemente no se pueda.
+
+**Qué hace falta para implementarlo** (no se puede inventar):
+
+1. Una cuenta en [Google Cloud Console](https://console.cloud.google.com).
+2. Crear un cliente OAuth 2.0 tipo **Web application** y anotar el
+   `CLIENT_ID`.
+3. Añadir la URI de redirección autorizada: la URL de YTwins + `/oauth/callback`
+   (en Render sería `https://ytwins.onrender.com/oauth/callback`).
+4. Poner ese `CLIENT_ID` como variable de entorno `GOOGLE_CLIENT_ID` en Render.
+
+Sin el paso 1-4 no hay forma de que funcione; el código sí lo puedo escribir.
+
+
 ## Nota legal
 
 Los reproductores incrustados son los oficiales de YouTube/Vimeo/Dailymotion.

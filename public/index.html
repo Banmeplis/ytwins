@@ -61,33 +61,8 @@
   </header>
 
   <main class="rejilla">
-    <!-- Columna del vídeo -->
+    <!-- Columna del vídeo (prioridad: ocupa todo el ancho que puede) -->
     <div class="col-video">
-      <!-- Buscador + cola (arriba: para elegir qué ver sin bajar) -->
-      <div class="panel panel-buscar">
-        <div class="pestanas">
-          <button class="pestana on" data-pestana="buscar">🔍 Buscar</button>
-          <button class="pestana" data-pestana="cola">Cola <span id="cola-contador" class="contador">0</span></button>
-        </div>
-
-        <div id="vista-buscar" class="pestana-vista">
-          <form id="form-buscar" class="fila-cola">
-            <input id="in-buscar" type="search" placeholder="Busca en YouTube: título, artista, lo que sea" autocomplete="off" />
-            <button class="btn primario" type="submit">Buscar</button>
-          </form>
-          <p class="aviso" id="aviso-buscar" hidden></p>
-          <ul id="lista-resultados" class="lista"></ul>
-        </div>
-
-        <div id="vista-cola" class="pestana-vista" hidden>
-          <form id="form-cola" class="fila-cola">
-            <input id="in-video" type="text" placeholder="Pega un enlace: YouTube, Vimeo, Dailymotion o .mp4" autocomplete="off" />
-            <button class="btn primario" type="submit">Añadir</button>
-          </form>
-          <ul id="lista-cola" class="lista"></ul>
-        </div>
-      </div>
-
       <div class="player-marco">
         <div id="player"></div>
         <div id="player-vacio" class="player-vacio">
@@ -124,6 +99,33 @@
         <button class="emoji" data-e="😭">😭</button>
       </div>
     </div>
+
+    <!-- Columna de la lista: al lado del reproductor para elegir qué ver -->
+    <aside class="col-lista">
+      <div class="panel panel-buscar">
+        <div class="pestanas">
+          <button class="pestana on" data-pestana="buscar">🔍 Buscar</button>
+          <button class="pestana" data-pestana="cola">Cola <span id="cola-contador" class="contador">0</span></button>
+        </div>
+
+        <div id="vista-buscar" class="pestana-vista">
+          <form id="form-buscar" class="fila-cola">
+            <input id="in-buscar" type="search" placeholder="Busca en YouTube: título, artista…" autocomplete="off" />
+            <button class="btn primario" type="submit">Buscar</button>
+          </form>
+          <p class="aviso" id="aviso-buscar" hidden></p>
+          <ul id="lista-resultados" class="lista"></ul>
+        </div>
+
+        <div id="vista-cola" class="pestana-vista" hidden>
+          <form id="form-cola" class="fila-cola">
+            <input id="in-video" type="text" placeholder="Pega un enlace: YouTube, Vimeo, Dailymotion o .mp4" autocomplete="off" />
+            <button class="btn primario" type="submit">Añadir</button>
+          </form>
+          <ul id="lista-cola" class="lista"></ul>
+        </div>
+      </div>
+    </aside>
 
     <!-- Columna lateral -->
     <aside class="col-lateral">
