@@ -171,8 +171,12 @@ Detalles honestos:
 - **Diagnóstico**: en ⚙️ Opciones de micrófono está el botón 🩺 *Diagnosticar el
   audio*. Dice si hay HTTPS, si el micro envía señal, cuántas conexiones hay y
   en qué estado está cada una. Es lo primero que hay que mirar si "no se oye".
-- Si el navegador bloquea el audio remoto, sale un aviso **🔇 Activar sonido**;
-  cualquier clic lo destranka.
+- **Por qué no aparece el aviso de sonido**: el audio remoto no usa elementos
+  `<audio>` (que el navegador puede bloquear por autoplay), sino **un único
+  `AudioContext` de WebAudio** que se desbloquea con el clic de 🎙️. Cada
+  persona que entra se conecta a ese contexto, así que suena sin pedir nada.
+  Si el contexto no estuviera disponible se cae al `<audio>` y ahí sí puede
+  salir el aviso 🔇 con su botón.
 - Necesitas HTTPS (o `localhost`) para que el navegador dé el micrófono.
 
 ### Añadir un plugin propio

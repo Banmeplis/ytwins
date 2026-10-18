@@ -49,7 +49,10 @@ const voz = {
   silenciado: false,
   streamLocal: null,      // MediaStream del micrófono
   conexiones: new Map(),  // userId -> RTCPeerConnection
-  audios: new Map(),      // userId -> HTMLAudioElement
+  audios: new Map(),      // userId -> <audio> (solo si WebAudio no está disponible)
+  fuentes: new Map(),     // userId -> { fuente, ganancia, analizador } de WebAudio
+  ctx: null,              // AudioContext único, desbloqueado con el clic del micro
+  voces: new Map(),       // clave -> { ctx, analizador } para "está hablando"
   pendientes: new Map(),  // userId -> candidatos ICE que aún no tienen remoto
   voces: new Map(),       // clave -> { ctx, analizador } para "está hablando"
   hablantes: new Set(),   // quién tiene la palabra ahora mismo
@@ -253,8 +256,10 @@ function cerrarTodo() {
   for (const a of voz.audios.values()) { try { a.pause(); a.srcObject = null; a.remove(); } catch {} }
   voz.audios.clear();
   voz.pendientes.clear();
-  for (const v of voz.voces.values()) { try { v.ctx.close(); } catch {} }
+  for (const v of voz.voces.values()) { try { v.fuente?.disconnect?.(); } catch {} }
   voz.voces.clear();
+  for (const f of voz.fuentes.values()) { try { f.fuente.disconnect(); f.ganancia.disconnect(); f.analizador.disconnect(); } catch {} }
+  voz.fuentes.clear();
   if (voz.streamLocal) for (const t of voz.streamLocal.getTracks()) { try { t.stop(); } catch {} }
   voz.streamLocal = null;
   voz.activa = false;
@@ -352,44 +357,103 @@ async function alMensaje(msg) {
  * Si el navegador bloquea el autoplay (o el elemento no suena por lo que sea),
  * NO nos quedamos en silencio: avisamos para que un clic lo arranque.
  */
+/* ---------------------------------------------------------------------------
+ * AUDIO REMOTO
+ *
+ * No usamos elementos <audio>: el navegador puede bloquearlos por la política
+ * de autoplay y el grupo se queda en silencio. En su lugar hay UN solo
+ * AudioContext, que se desbloquea con el clic de "🎙️ Voz" (o con cualquier
+ * clic posterior) y a él se connecta cada persona que llega. Como el contexto
+ * ya está en marcha, el sonido sale sin pedir permiso otra vez.
+ * ------------------------------------------------------------------------- */
+
+/** Crea o devuelve el contexto de audio, intentando que esté en marcha. */
+function contextoAudio() {
+  if (!voz.ctx) {
+    const Ctx = window.AudioContext || window.webkitAudioContext;
+    if (!Ctx) return null;
+    voz.ctx = new Ctx();
+  }
+  if (voz.ctx.state !== 'running') voz.ctx.resume().catch(() => {});
+  return voz.ctx;
+}
+
+// cualquier clic reactiva el contexto (si el navegador lo había suspendido)
+if (typeof document !== 'undefined') {
+  for (const ev of ['pointerdown', 'keydown', 'touchend']) {
+    document.addEventListener(ev, () => { if (voz.ctx && voz.ctx.state !== 'running') voz.ctx.resume().catch(() => {}); }, true);
+  }
+}
+
+/**
+ * Suena el audio de una persona.
+ * Con WebAudio siempre; si el contexto no arranca, se cae a <audio>.
+ */
 function reproducirRemoto(userId, flujo) {
+  const ctx = contextoAudio();
+  if (ctx) {
+    try {
+      let nodo = voz.fuentes.get(userId);
+      if (!nodo) {
+        const fuente = ctx.createMediaStreamSource(flujo);
+        const ganancia = ctx.createGain();
+        ganancia.gain.value = 1;
+        const analizador = ctx.createAnalyser();
+        analizador.fftSize = 512;
+        fuente.connect(ganancia);
+        ganancia.connect(analizador);
+        ganancia.connect(ctx.destination);
+        nodo = { fuente, ganancia, analizador, buf: new Uint8Array(analizador.frequencyBinCount) };
+        voz.fuentes.set(userId, nodo);
+        medirDesde(nodo, userId);
+      }
+      voz.bloqueado = false;
+      alAviso(userId, 'ok');
+      return;
+    } catch (e) { /* seguimos al plan B */ }
+  }
+
+  // plan B: elemento de audio (si el contexto no se puede usar)
   let audio = voz.audios.get(userId);
   if (!audio) {
     audio = document.createElement('audio');
     audio.autoplay = true;
     audio.setAttribute('data-user', userId);
-    // en el DOM: hay navegadores que no reproducen elementos sueltos
-    voz.capa.appendChild(audio);
+    voz.capa?.appendChild(audio);
     voz.audios.set(userId, audio);
   }
   audio.srcObject = flujo;
   const p = audio.play();
   if (p && p.catch) {
-    p.then(() => { voz.bloqueado = false; }).catch(() => {
-      voz.bloqueado = true;
-      alAviso(userId, 'sin-sonido');
+    p.then(() => { voz.bloqueado = false; }).catch((e) => {
+      // solo es "autoplay" si el navegador lo dice así; si no, es otro problema
+      if (e?.name === 'NotAllowedError') {
+        voz.bloqueado = true;
+        alAviso(userId, 'sin-sonido');
+      } else {
+        alAviso(userId, 'sin-flujo');
+      }
     });
   }
   medirVoz(flujo, userId);
 }
 
-/** Tras un clic del usuario reintentamos: el gesto destranca el audio bloqueado. */
+/** Tras un clic del usuario reintentamos: el gesto destranca el audio. */
 function reintentarAudio() {
-  if (!voz.bloqueado) return;
-  let pendientes = 0;
+  const ctx = contextoAudio();
+  if (ctx) { voz.bloqueado = false; alAviso(userIdTodos(), 'ok'); }
   for (const audio of voz.audios.values()) {
-    if (!audio.srcObject) continue;
-    pendientes++;
-    const p = audio.play();
-    if (p && p.then) p.then(() => { if (--pendientes === 0) { voz.bloqueado = false; } }).catch(() => { pendientes--; });
-    else pendientes--;
+    if (audio.srcObject) audio.play().catch(() => {});
   }
-  if (pendientes === 0) voz.bloqueado = false;
 }
+function userIdTodos() { return '__todos__'; }
 
 function cerrarConexion(userId) {
   try { voz.conexiones.get(userId)?.close(); } catch {}
   voz.conexiones.delete(userId);
+  const nodo = voz.fuentes.get(userId);
+  if (nodo) { try { nodo.fuente.disconnect(); nodo.ganancia.disconnect(); nodo.analizador.disconnect(); } catch {} }
+  voz.fuentes.delete(userId);
   const a = voz.audios.get(userId);
   if (a) { try { a.pause(); a.srcObject = null; a.remove(); } catch {} }
   voz.audios.delete(userId);
@@ -422,36 +486,42 @@ function alEstado(participantes) {
 /* ------------------ "está hablando" (resaltado en la lista) -------------- */
 
 function medirVoz(stream, userId) {
+  const ctx = contextoAudio() || new (window.AudioContext || window.webkitAudioContext)();
   try {
-    const ctx = new (window.AudioContext || window.webkitAudioContext)();
     if (ctx.state === 'suspended') ctx.resume().catch(() => {});
     const fuente = ctx.createMediaStreamSource(stream);
     const analizador = ctx.createAnalyser();
     analizador.fftSize = 512;
     fuente.connect(analizador);
-    const buf = new Uint8Array(analizador.frequencyBinCount);
-    const clave = userId || '__yo__';
-    voz.voces.set(clave, { ctx, analizador });
-    const paso = () => {
-      if (!voz.voces.has(clave)) return;
-      analizador.getByteFrequencyData(buf);
-      let suma = 0;
-      for (const v of buf) suma += v * v;
-      const rms = Math.sqrt(suma / buf.length) / 255;
-      const hablando = rms > voz.sensibilidad;
-      if (!userId) {
-        voz.nivel = rms; // sirve para el medidor de las opciones
-        if (hablando !== voz.hablando) {
-          voz.hablando = hablando;
-          enviar({ type: 'voz.habla', hablando });
-        }
-      } else {
-        marcarHablando(userId, hablando);
-      }
-      requestAnimationFrame(paso);
-    };
-    paso();
+    const nodo = { ctx, fuente, analizador, buf: new Uint8Array(analizador.frequencyBinCount) };
+    medirDesde(nodo, userId);
   } catch {}
+}
+
+/** Bucle que mide el volumen y avisa de quién está hablando. */
+function medirDesde(nodo, userId) {
+  const { analizador, buf } = nodo;
+  const clave = userId || '__yo__';
+  voz.voces.set(clave, nodo);
+  const paso = () => {
+    if (!voz.voces.has(clave)) return;
+    analizador.getByteFrequencyData(buf);
+    let suma = 0;
+    for (const v of buf) suma += v * v;
+    const rms = Math.sqrt(suma / buf.length) / 255;
+    const hablando = rms > voz.sensibilidad;
+    if (!userId) {
+      voz.nivel = rms; // sirve para el medidor de las opciones
+      if (hablando !== voz.hablando) {
+        voz.hablando = hablando;
+        enviar({ type: 'voz.habla', hablando });
+      }
+    } else {
+      marcarHablando(userId, hablando);
+    }
+    requestAnimationFrame(paso);
+  };
+  paso();
 }
 
 function marcarHablando(userId, hablando) {
@@ -475,6 +545,8 @@ async function diagnostico() {
   pista('pista local viva' + (local ? ` (${local.label || local.readyState})` : ''), !!(local && local.readyState === 'live'));
   pista('pista local conmutada a silencio', !voz.silenciado);
   pista('nivel de entrada (0-1)', (voz.nivel ?? 0) > 0.01 ? 'hay señal, el micro funciona' : 'cero: nadie suena en tu micrófono');
+  pista('contexto de audio en marcha (sin bloqueo de autoplay)', voz.ctx?.state === 'running');
+  pista('personas sonando (WebAudio)', voz.fuentes.size > 0);
   pista('audio remoto bloqueado por el navegador', !voz.bloqueado);
   pista('conexiones abiertas', voz.conexiones.size > 0);
 
@@ -500,10 +572,12 @@ function centrarVoz(userId, hablando) {
   voz.hablantes = hablando
     ? new Set([...voz.hablantes, userId])
     : new Set([...voz.hablantes].filter((id) => id !== userId));
-  for (const [id, audio] of voz.audios) {
-    // nivel 1 para quien habla, 0.55 para el resto; sin nadie hablando: todos a 1
-    audio.volume = voz.hablantes.size === 0 ? 1 : (voz.hablantes.has(id) ? 1 : 0.55);
-  }
+  const nivel = (id) => (voz.hablantes.size === 0 ? 1 : voz.hablantes.has(id) ? 1 : 0.55);
+  // con WebAudio bajamos la ganancia; en el plan B, el volumen del elemento
+  const nodo = voz.fuentes.get(userId);
+  if (nodo) { try { nodo.ganancia.gain.value = nivel(userId); } catch {} }
+  const audio = voz.audios.get(userId);
+  if (audio) audio.volume = nivel(userId);
 }
 
 window.YTwinsVoz = {

@@ -1311,6 +1311,8 @@ window.YTwinsVoz?.iniciarVoz({
       $('#aviso-audio').hidden = true;
     } else if (aviso === 'sin-sonido') {
       $('#aviso-audio').hidden = false; // el navegador no deja reproducir: hace falta un clic
+    } else if (aviso === 'sin-flujo') {
+      toast('No me llega audio de ' + nombre + ': puede ser la red.', true);
     }
     pintarVozFallida();
   },
