@@ -33,6 +33,74 @@ button,input{font:inherit;color:inherit}
 h1,h2{margin:0}
 
 /* ------------------------------- LOBBY --------------------------------- */
+/* Rejilla bento: tarjetas de tamaños distintos, como un tablero */
+.bento{display:grid;gap:14px;width:min(1080px,100%);margin:auto;
+  grid-template-columns:repeat(3,minmax(0,1fr));
+  grid-template-areas:
+    "cab    cab    cab"
+    "crear  crear  nombre"
+    "crear  crear  unirse"
+    "voz    fuentes fuentes";
+}
+.t-cab{grid-area:cab}
+.t-crear{grid-area:crear}
+.t-nombre{grid-area:nombre}
+.t-unirse{grid-area:unirse}
+.t-voz{grid-area:voz}
+.t-fuentes{grid-area:fuentes}
+.t-error{grid-area:error}
+.t-pie{grid-area:pie}
+
+.bento-cab{text-align:center;padding:6px 0 2px}
+.bento-cab h1{font-size:46px;letter-spacing:-.6px;font-weight:800;margin:0}
+.bento-cab h1 span{background:linear-gradient(135deg,var(--acento),var(--oro));
+  -webkit-background-clip:text;background-clip:text;color:transparent}
+.bento-cab .sub{color:var(--dim);margin:8px auto 0;max-width:56ch;font-size:15px}
+
+.tarjeta{position:relative;display:flex;flex-direction:column;gap:10px;padding:18px;
+  border-radius:var(--radio);border:1px solid var(--line);
+  background:var(--panel);backdrop-filter:blur(16px) saturate(130%);
+  box-shadow:var(--sombra-baja),0 1px 0 rgba(255,255,255,.06) inset;
+  transition:transform .2s cubic-bezier(.2,.7,.3,1),border-color .2s,box-shadow .2s;overflow:hidden}
+.tarjeta:hover{transform:translateY(-3px);border-color:var(--line-viva);box-shadow:var(--sombra)}
+.tarjeta h2{font-size:12px;text-transform:uppercase;letter-spacing:.14em;color:var(--dim);font-weight:700}
+.tarjeta p{color:var(--dim);font-size:14px;line-height:1.5;margin:0}
+.tarjeta code{background:rgba(255,255,255,.08);padding:1px 5px;border-radius:5px;font-size:12.5px}
+.nota{color:#6f7d96;font-size:12px;margin-top:auto}
+
+/* la tarjeta grande: crear sala */
+.t-crear{background:linear-gradient(150deg,rgba(255,61,90,.16),rgba(77,163,255,.12) 55%,rgba(160,107,255,.14));
+  border-color:rgba(255,120,150,.28);padding:24px}
+.t-crear::after{content:'';position:absolute;right:-70px;top:-90px;width:220px;height:220px;border-radius:50%;
+  background:radial-gradient(circle,rgba(255,61,90,.28),transparent 68%);filter:blur(6px);pointer-events:none}
+.t-crear h2{color:var(--txt);font-size:14px}
+.t-crear .campo{margin:0}
+.btn.grande{width:100%;padding:14px 18px;font-size:16px;border-radius:13px}
+
+.t-unirse{background:linear-gradient(150deg,rgba(77,163,255,.12),rgba(160,107,255,.12))}
+.t-unirse h2{color:var(--txt)}
+.error{padding:12px 14px;border-radius:12px;background:rgba(255,61,90,.12);border:1px solid rgba(255,61,90,.4);color:#ffb3c0;font-size:14px}
+.pie{color:var(--dim);font-size:13px;text-align:center;margin-top:2px}
+
+/* tablet: dos columnas */
+@media (max-width:860px){
+  .bento{grid-template-columns:repeat(2,minmax(0,1fr));
+    grid-template-areas:
+      "cab    cab"
+      "crear  crear"
+      "nombre unirse"
+      "voz    fuentes";
+    padding:0 6px}
+  .bento-cab h1{font-size:38px}
+}
+/* móvil: una columna */
+@media (max-width:620px){
+  .bento{grid-template-columns:1fr;
+    grid-template-areas:"cab" "nombre" "crear" "unirse" "voz" "fuentes";
+    padding:0 2px}
+  .bento-cab h1{font-size:33px}
+  .t-crear{padding:20px}
+}
 #vista-lobby.activa{display:grid;place-items:center;padding:24px}
 .lobby-caja{width:min(760px,100%);background:var(--panel);border:1px solid var(--line);
   border-radius:24px;padding:38px;box-shadow:var(--sombra),0 1px 0 rgba(255,255,255,.08) inset;
@@ -195,6 +263,50 @@ h1,h2{margin:0}
 .col-lista .lista{overflow-y:auto;min-height:0;padding-right:4px}
 .col-lista .pestanas{flex:0 0 auto}
 .col-lista .fila-cola,.col-lista .aviso{flex:0 0 auto}
+
+/* --------------------- chat flotante (burbuja) --------------------------- */
+.chat-flotante{position:fixed;right:18px;bottom:18px;z-index:45;display:flex;flex-direction:column;
+  align-items:flex-end;gap:10px;pointer-events:none}
+.chat-flotante>*{pointer-events:auto}
+
+.chat-boton{width:60px;height:60px;border-radius:50%;border:none;cursor:pointer;position:relative;
+  display:grid;place-items:center;font-size:24px;color:#fff;
+  background:linear-gradient(140deg,var(--acento),#ff6b3d 55%,var(--acento2));
+  box-shadow:0 12px 34px rgba(255,61,90,.42),0 2px 0 rgba(255,255,255,.25) inset;
+  transition:transform .2s cubic-bezier(.2,.7,.3,1),box-shadow .2s}
+.chat-boton:hover{transform:translateY(-3px) scale(1.04);
+  box-shadow:0 18px 44px rgba(255,61,90,.55),0 2px 0 rgba(255,255,255,.3) inset}
+.chat-boton:active{transform:scale(.96)}
+.chat-boton:focus-visible{outline:2px solid var(--acento2);outline-offset:3px}
+.chat-boton.pide-atencion{animation:llamar .9s ease-in-out infinite}
+@keyframes llamar{0%,100%{box-shadow:0 12px 34px rgba(255,61,90,.42),0 0 0 0 rgba(255,61,90,.5)}
+  50%{box-shadow:0 12px 34px rgba(255,61,90,.42),0 0 0 14px rgba(255,61,90,0)}}
+
+.insignia{position:absolute;top:-4px;right:-4px;min-width:24px;height:24px;padding:0 6px;border-radius:999px;
+  background:var(--ok);color:#04220f;font-size:12px;font-weight:800;display:grid;place-items:center;
+  box-shadow:0 0 0 3px var(--bg),0 4px 12px rgba(0,0,0,.4)}
+
+.chat-flotante .chat-panel{width:min(380px,calc(100vw - 32px));margin:0;max-height:min(74vh,640px);
+  display:flex;flex-direction:column;min-height:0;margin-bottom:2px;
+  box-shadow:0 26px 70px rgba(0,0,0,.6),0 1px 0 rgba(255,255,255,.08) inset;
+  animation:aparece .22s cubic-bezier(.2,.8,.3,1)}
+.chat-flotante .chat-panel[hidden]{display:none}
+@keyframes aparece{from{opacity:0;transform:translateY(14px) scale(.97)}to{opacity:1;transform:none}}
+
+.chat-cab{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:10px}
+.chat-cab h2{margin:0}
+.cerrar-chat{width:30px;height:30px;padding:0;border-radius:9px;font-size:13px;color:var(--dim)}
+.aviso-flotante{border-color:rgba(255,61,90,.35);background:rgba(255,61,90,.1);
+  display:flex;flex-direction:column;gap:2px;font-size:13px;animation:aparece .2s}
+.aviso-flotante span{color:var(--dim);font-size:12px}
+
+/* en móvil la burbuja se ancla abajo a lo ancho */
+@media (max-width:620px){
+  .chat-flotante{left:10px;right:10px;bottom:calc(10px + env(safe-area-inset-bottom));align-items:stretch}
+  .chat-boton{align-self:flex-end;width:56px;height:56px}
+  .chat-flotante .chat-panel{width:100%;max-height:min(72vh,560px)}
+  .toast{bottom:76px}
+}
 
 /* ------------------------------ pestañas -------------------------------- */
 .pestanas{display:flex;gap:8px;margin-bottom:12px}

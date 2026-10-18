@@ -95,6 +95,7 @@ function abrirSocket() {
         if (msg.token) sessionStorage.setItem('yr-' + msg.code, msg.token);
         sessionStorage.setItem('yr-ultima', JSON.stringify({ code: msg.code, name: nombreSesion }));
         mostrarSala();
+        abrirChat(true); // al entrar, el chat está a mano
         break;
 
       case 'state':
@@ -1041,6 +1042,14 @@ function renderChat() {
     box.appendChild(div);
   }
   if (cercaDelFondo || estado.chat.length <= 1) box.scrollTop = box.scrollHeight;
+
+  // mensajes que llegan con el chat cerrado → burbuja con contador
+  const nuevos = estado.chat.length - chatVistos;
+  if (nuevos > 0 && $('#panel-chat').hidden) {
+    chatSinLeer += nuevos;
+    pintarInsignia();
+  }
+  chatVistos = estado.chat.length;
 }
 
 /* ------------------------------ reacciones ------------------------------ */
@@ -1073,6 +1082,18 @@ $('#btn-unirse').onclick = () => {
 
 $('#in-codigo').addEventListener('keydown', (e) => { if (e.key === 'Enter') $('#btn-unirse').click(); });
 $('#in-nombre').addEventListener('keydown', (e) => { if (e.key === 'Enter') $('#btn-unirse').click(); });
+
+/* burbuja del chat */
+$('#btn-chat').onclick = () => abrirChat($('#panel-chat').hidden, { foco: true });
+$('#btn-cerrar-chat').onclick = () => abrirChat(false);
+$('#aviso-flotante').onclick = () => abrirChat(true, { foco: true });
+// atajo: "c" abre y cierra el chat (sin estorbar mientras escribes)
+document.addEventListener('keydown', (e) => {
+  if (e.key.toLowerCase() !== 'c' || e.ctrlKey || e.metaKey || e.altKey) return;
+  if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.tagName === 'SELECT') return;
+  if (!$('#vista-sala').classList.contains('activa')) return;
+  abrirChat($('#panel-chat').hidden, { foco: true });
+});
 
 $('#btn-salir').onclick = () => {
   sessionStorage.removeItem('yr-ultima');
@@ -1138,6 +1159,39 @@ document.querySelectorAll('.pestana').forEach((b) => {
     $('#vista-cola').hidden = b.dataset.pestana !== 'cola';
   };
 });
+
+/* --------------------------- chat flotante ----------------------------- */
+const CLAVE_CHAT = 'yr-chat-abierto';
+let chatSinLeer = 0;
+let chatVistos = 0; // mensajes que ya se han dibujado (para saber cuáles son nuevos)
+
+/** Abre o cierra la burbuja del chat (y avisa de los mensajes acumulados). */
+function abrirChat(abrir, { foco = false } = {}) {
+  const panel = $('#panel-chat');
+  const boton = $('#btn-chat');
+  panel.hidden = !abrir;
+  boton.setAttribute('aria-label', abrir ? 'Cerrar el chat' : 'Abrir el chat');
+  if (abrir) {
+    chatSinLeer = 0;
+    pintarInsignia();
+    document.querySelector('#aviso-flotante').hidden = true;
+    boton.classList.remove('pide-atencion');
+    try { localStorage.setItem(CLAVE_CHAT, '1'); } catch {}
+    if (foco) setTimeout(() => $('#in-chat')?.focus(), 120);
+    pintarTiempo();
+  } else {
+    try { localStorage.setItem(CLAVE_CHAT, '0'); } catch {}
+  }
+}
+
+function pintarInsignia() {
+  const ins = $('#chat-insignia');
+  ins.textContent = chatSinLeer > 9 ? '9+' : String(chatSinLeer);
+  ins.hidden = chatSinLeer === 0;
+  $('#btn-chat').classList.toggle('pide-atencion', chatSinLeer > 0);
+  const aviso = $('#aviso-flotante');
+  aviso.hidden = chatSinLeer === 0 || !$('#panel-chat').hidden;
+}
 
 /* --------------------------- plegar la lista ---------------------------- */
 const CLAVE_PLEGADA = 'yr-lista-plegada';

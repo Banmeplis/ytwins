@@ -11,38 +11,51 @@
 
 <!-- ================================ LOBBY ================================ -->
 <section id="vista-lobby" class="vista activa">
-  <div class="lobby-caja">
-    <h1>▶ Y<span>Twins</span></h1>
-    <p class="sub">Crea una sala, comparte el código y mirad sincronizados: YouTube, Vimeo, Dailymotion o un .mp4 directo.</p>
+  <div class="bento">
+    <header class="bento-cab t-cab">
+      <h1>▶ Y<span>Twins</span></h1>
+      <p class="sub">Crea una sala, comparte el código y mirad sincronizados: el mismo vídeo, en el mismo segundo.</p>
+    </header>
 
-    <label class="campo">
-      <span>Tu nombre</span>
-      <input id="in-nombre" type="text" maxlength="24" placeholder="p. ej. Ana" autocomplete="off" />
-    </label>
+    <section class="tarjeta t-crear">
+      <h2>🏠 Crear una sala</h2>
+      <label class="campo">
+        <span>Nombre de la sala</span>
+        <input id="in-nombre-sala" type="text" maxlength="40" placeholder="Cine de terror" autocomplete="off" />
+      </label>
+      <button id="btn-crear" class="btn primario grande">Crear sala</button>
+      <small class="nota">Te sale un código de 6 letras para compartir.</small>
+    </section>
 
-    <div class="lobby-acciones">
-      <div class="bloque">
-        <label class="campo">
-          <span>Nombre de la sala</span>
-          <input id="in-nombre-sala" type="text" maxlength="40" placeholder="Cine de terror" autocomplete="off" />
-        </label>
-        <button id="btn-crear" class="btn primario">Crear sala</button>
-      </div>
+    <section class="tarjeta t-nombre">
+      <h2>👤 Tu nombre</h2>
+      <label class="campo">
+        <input id="in-nombre" type="text" maxlength="24" placeholder="p. ej. Ana" autocomplete="off" />
+      </label>
+      <small class="nota">Así te verán los demás.</small>
+    </section>
 
-      <div class="separador"><span>o</span></div>
+    <section class="tarjeta t-unirse">
+      <h2>🔑 Unirse</h2>
+      <label class="campo">
+        <input id="in-codigo" type="text" maxlength="6" placeholder="ABC123" autocomplete="off"
+               style="text-transform:uppercase; letter-spacing:.35em; text-align:center; font-size:18px" />
+      </label>
+      <button id="btn-unirse" class="btn secundario grande">Unirse</button>
+    </section>
 
-      <div class="bloque">
-        <label class="campo">
-          <span>Código de la sala</span>
-          <input id="in-codigo" type="text" maxlength="6" placeholder="ABC123" autocomplete="off"
-                 style="text-transform:uppercase; letter-spacing:.35em; text-align:center" />
-        </label>
-        <button id="btn-unirse" class="btn secundario">Unirse</button>
-      </div>
-    </div>
+    <section class="tarjeta t-voz">
+      <h2>🎙️ Voz</h2>
+      <p>Habla en tiempo real. Cuando alguien habla, el vídeo baja solo.</p>
+    </section>
 
-    <p id="lobby-error" class="error" hidden></p>
-    <p class="pie">Funciona en móvil, PC y TV. Calidad automática según tu conexión.</p>
+    <section class="tarjeta t-fuentes">
+      <h2>📺 Fuentes</h2>
+      <p>YouTube, Vimeo, Dailymotion o un <code>.mp4</code> directo. Buscador integrado sin claves de API.</p>
+    </section>
+
+    <p id="lobby-error" class="error t-error" hidden></p>
+    <p class="pie t-pie">Funciona en móvil, PC y TV · Calidad automática según tu conexión</p>
   </div>
 </section>
 
@@ -152,50 +165,9 @@
         </div>
       </div>
 
-      <div class="panel chat-panel">
-        <h2>Chat</h2>
-        <div id="lista-chat" class="chat"></div>
-
-        <details class="opciones-voz" id="opciones-voz">
-          <summary>⚙️ Opciones de micrófono</summary>
-          <div class="opciones-cuerpo">
-            <label class="opcion">
-              <span>Micrófono <i id="val-micro">—</i></span>
-              <div class="fila-sel">
-                <select id="sel-micro"></select>
-                <button id="btn-refrescar-micro" class="btn micro-refrescar" title="Buscar más dispositivos" aria-label="Buscar más dispositivos">🔄</button>
-              </div>
-              <small class="pista" id="pista-micro">Activa el micro una vez para ver todos los dispositivos con su nombre.</small>
-            </label>
-
-            <label class="opcion">
-              <span>Sensibilidad <i id="val-sensibilidad">normal</i></span>
-              <input id="in-sensibilidad" type="range" min="2" max="30" step="1" value="6" />
-            </label>
-
-            <label class="opcion">
-              <span>Volumen del micro <i id="val-ganancia">100 %</i></span>
-              <input id="in-ganancia" type="range" min="20" max="300" step="10" value="100" />
-            </label>
-
-            <label class="opcion fila">
-              <input id="in-ptt" type="checkbox" />
-              <span>Hablar solo mientras mantengo pulsado 🎙️</span>
-            </label>
-
-            <div class="medidor" title="Nivel de tu micrófono">
-              <div class="medidor-barra" id="medidor-barra"></div>
-              <span id="medidor-texto">micro cerrado</span>
-            </div>
-          </div>
-        </details>
-
-        <form id="form-chat" class="fila-chat">
-          <button id="btn-voz" type="button" class="btn mic" title="Entrar al canal de voz. Con el micro abierto: clic silencia y Shift+clic sale.">🎙️</button>
-          <button id="btn-voz-opciones" type="button" class="btn micro-ajustes" title="Opciones de micrófono" aria-label="Opciones de micrófono">⚙️</button>
-          <input id="in-chat" type="text" maxlength="500" placeholder="Escribe un mensaje…" autocomplete="off" />
-          <button class="btn primario" type="submit">➤</button>
-        </form>
+      <div class="panel aviso-flotante" id="aviso-flotante" hidden>
+        <strong>Hay mensajes nuevos</strong>
+        <span>El chat está en la burbuja de abajo ↘</span>
       </div>
 
       <details class="panel extras" id="panel-extras">
@@ -242,6 +214,64 @@
 </section>
 
 <div id="toast" class="toast" hidden></div>
+
+<!-- ======================= CHAT FLOTANTE (burbuja) ======================= -->
+<div class="chat-flotante" id="chat-flotante">
+  <section class="chat-panel panel" id="panel-chat" hidden>
+    <header class="chat-cab">
+      <h2>Chat</h2>
+      <button id="btn-cerrar-chat" class="btn cerrar-chat" title="Cerrar el chat" aria-label="Cerrar el chat">✕</button>
+    </header>
+
+    <div id="lista-chat" class="chat"></div>
+
+    <details class="opciones-voz" id="opciones-voz">
+      <summary>⚙️ Opciones de micrófono</summary>
+      <div class="opciones-cuerpo">
+        <label class="opcion">
+          <span>Micrófono <i id="val-micro">—</i></span>
+          <div class="fila-sel">
+            <select id="sel-micro"></select>
+            <button id="btn-refrescar-micro" class="btn micro-refrescar" title="Buscar más dispositivos" aria-label="Buscar más dispositivos">🔄</button>
+          </div>
+          <small class="pista" id="pista-micro">Activa el micro una vez para ver todos los dispositivos con su nombre.</small>
+        </label>
+
+        <label class="opcion">
+          <span>Sensibilidad <i id="val-sensibilidad">normal</i></span>
+          <input id="in-sensibilidad" type="range" min="2" max="30" step="1" value="6" />
+        </label>
+
+        <label class="opcion">
+          <span>Volumen del micro <i id="val-ganancia">100 %</i></span>
+          <input id="in-ganancia" type="range" min="20" max="300" step="10" value="100" />
+        </label>
+
+        <label class="opcion fila">
+          <input id="in-ptt" type="checkbox" />
+          <span>Hablar solo mientras mantengo pulsado 🎙️</span>
+        </label>
+
+        <div class="medidor" title="Nivel de tu micrófono">
+          <div class="medidor-barra" id="medidor-barra"></div>
+          <span id="medidor-texto">micro cerrado</span>
+        </div>
+      </div>
+    </details>
+
+    <form id="form-chat" class="fila-chat">
+      <button id="btn-voz" type="button" class="btn mic" title="Entrar al canal de voz. Con el micro abierto: clic silencia y Shift+clic sale.">🎙️</button>
+      <button id="btn-voz-opciones" type="button" class="btn micro-ajustes" title="Opciones de micrófono" aria-label="Opciones de micrófono">⚙️</button>
+      <input id="in-chat" type="text" maxlength="500" placeholder="Escribe un mensaje…" autocomplete="off" />
+      <button class="btn primario" type="submit">➤</button>
+    </form>
+  </section>
+
+  <button id="btn-chat" class="chat-boton" title="Abrir el chat" aria-label="Abrir el chat">
+    <span class="emoji-chat">💬</span>
+    <span class="insignia" id="chat-insignia" hidden>0</span>
+  </button>
+</div>
 
 <script src="/player.js"></script>
 <script src="/voz.js"></script>
