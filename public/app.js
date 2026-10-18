@@ -895,7 +895,10 @@ function nodoThumb(item) {
   if (item.thumbnail) {
     const img = document.createElement('img');
     img.className = 'thumb';
-    img.loading = 'lazy';
+    // OJO: con loading="lazy" dentro de esta lista con scroll propio el
+    // navegador NO cargaba ninguna miniatura (se quedaba en blanco).
+    img.decoding = 'async';
+    img.referrerPolicy = 'no-referrer';
     img.src = item.thumbnail;
     img.alt = '';
     img.onerror = () => { const d = document.createElement('div'); d.className = 'thumb'; d.textContent = '🎬'; img.replaceWith(d); };
