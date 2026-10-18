@@ -1296,19 +1296,38 @@ function pintarVozFallida() {
 }
 
 window.YTwinsVoz?.iniciarVoz({
-  enviar, miId,
+  enviar, miId: yoId,
   alCambiar: pintarBotonVoz,
   alAvisar: (userId, aviso) => {
     const nombre = estado?.users?.find((u) => u.id === userId)?.name || 'alguien';
     if (aviso === 'fallo') {
       conexionesVoz.set(userId, 'fallo');
-      toast(`No se pudo conectar la voz con ${nombre}: casi siempre es la red (prueba con datos móviles o otro wifi).`, true);
+      toast(`No se pudo conectar la voz con ${nombre}: casi siempre es la red (prueba con datos móviles u otro wifi).`, true);
     } else if (aviso === 'ok') {
       conexionesVoz.delete(userId);
+      $('#aviso-audio').hidden = true;
+    } else if (aviso === 'sin-sonido') {
+      $('#aviso-audio').hidden = false; // el navegador no deja reproducir: hace falta un clic
     }
     pintarVozFallida();
   },
 });
+
+// el audio remoto colgado puede quedarse en pausa: cualquier clic lo destrancan
+document.addEventListener('click', () => window.YTwinsVoz?.reintentarAudio(), true);
+$('#btn-activar-audio').onclick = () => {
+  window.YTwinsVoz?.reintentarAudio();
+  setTimeout(() => { if (!window.YTwinsVoz?.bloqueado?.()) $('#aviso-audio').hidden = true; }, 400);
+};
+
+// diagnóstico del audio
+$('#btn-diagnostico').onclick = async () => {
+  const salida = $('#diag-salida');
+  salida.hidden = false;
+  salida.textContent = 'Comprobando…';
+  const r = await window.YTwinsVoz.diagnostico();
+  salida.textContent = r.texto;
+};
 
 // Latido: mantiene viva la conexión (y evita que el alojamiento duerma la app
 // mientras hay gente en la sala). El servidor responde con un "pong" ignorado.

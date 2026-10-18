@@ -202,7 +202,6 @@
           </section>
 
           <section id="seccion-notas" hidden>
-            <h2>Notas compartidas</h2>
             <div id="notas-lectura" class="notas"></div>
             <textarea id="in-notas" class="notas-edit" rows="3" maxlength="2000" placeholder="Apunta aquí la dirección, la receta, el plan…" hidden></textarea>
             <button id="btn-notas" class="btn" hidden>Guardar notas</button>
@@ -214,6 +213,7 @@
 </section>
 
 <div id="toast" class="toast" hidden></div>
+<div id="capa-audio" aria-hidden="true" style="position:fixed;width:0;height:0;overflow:hidden"></div>
 
 <!-- ======================= CHAT FLOTANTE (burbuja) ======================= -->
 <div class="chat-flotante" id="chat-flotante">
@@ -256,8 +256,15 @@
           <div class="medidor-barra" id="medidor-barra"></div>
           <span id="medidor-texto">micro cerrado</span>
         </div>
+
+        <button id="btn-diagnostico" class="btn boton-diag" type="button">🩺 Diagnosticar el audio</button>
+        <pre id="diag-salida" class="ia-salida" hidden></pre>
       </div>
     </details>
+
+    <p id="aviso-audio" class="aviso-audio" hidden>
+      🔇 El navegador no me deja reproducir a los demás. <button id="btn-activar-audio" class="btn">Activar sonido</button>
+    </p>
 
     <form id="form-chat" class="fila-chat">
       <button id="btn-voz" type="button" class="btn mic" title="Entrar al canal de voz. Con el micro abierto: clic silencia y Shift+clic sale.">🎙️</button>

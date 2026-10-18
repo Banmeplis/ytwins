@@ -26,6 +26,24 @@ const ICE_SERVIDORES = [
   { urls: 'stun:stun.cloudflare.com:3478' },
 ];
 
+/**
+ * Si el servidor de la sala define TURN_URLS (JSON), se añaden esos relays.
+ * El TURN es lo único que conecta cuando la red es muy restrictiva o cuando
+ * dos equipos están en la misma wifi y los candidatos "mDNS" no se resuelven.
+ *   TURN_URLS=[{"urls":"turn:mi-servidor:3478","username":"u","credential":"p"}]
+ */
+async function cargarTurn() {
+  try {
+    const r = await fetch('/api/turn');
+    if (!r.ok) return;
+    const { servidores } = await r.json();
+    if (Array.isArray(servidores) && servidores.length) {
+      ICE_SERVIDORES.push(...servidores);
+      console.info('voz: servidores TURN añadidos', servidores.length);
+    }
+  } catch {}
+}
+
 const voz = {
   activa: false,
   silenciado: false,
@@ -36,6 +54,8 @@ const voz = {
   voces: new Map(),       // clave -> { ctx, analizador } para "está hablando"
   hablantes: new Set(),   // quién tiene la palabra ahora mismo
   hablando: false,
+  bloqueado: false,       // el navegador impide reproducir el audio remoto
+  capa: null,             // <div> donde se cuelgan los <audio> remotos
   // ajustes del micrófono (los elige quien habla)
   microfonoId: '',        // id del dispositivo elegido ('' = el del sistema)
   sensibilidad: 0.06,     // umbral de voz (RMS) para considerarte "hablando"
@@ -55,6 +75,8 @@ function iniciarVoz({ enviar: env, miId: id, alCambiar: cb, alAviso: av }) {
   miId = id || miId;
   if (cb) alCambiar = cb;
   if (av) alAviso = av;
+  if (!voz.capa) voz.capa = document.getElementById('capa-audio');
+  cargarTurn();
 }
 
 /* --------------------------- ajustes del micro -------------------------- */
@@ -260,12 +282,9 @@ function conexion(userId) {
     if (e.candidate) enviar({ type: 'voz.senales', para: userId, ice: e.candidate.toJSON() });
   };
   c.ontrack = (e) => {
-    const audio = new Audio();
-    audio.autoplay = true;
-    audio.srcObject = e.streams[0];
-    audio.play().catch(() => {}); // si el navegador lo bloquea, el botón 🎙️ ya dio el gesto
-    voz.audios.set(userId, audio);
-    medirVoz(e.streams[0], userId);
+    // algunos navegadores entregan la pista sin "streams": la reconstruimos
+    const flujo = e.streams?.[0] || new MediaStream([e.track]);
+    reproducirRemoto(userId, flujo);
   };
   c.onconnectionstatechange = () => {
     // diagnóstico: si la voz no llega, se avisa en vez de quedarse en silencio
@@ -325,6 +344,47 @@ async function alMensaje(msg) {
       }
     } catch { /* conexión a medias: se ignora y se reintenta al siguiente evento */ }
   }
+}
+
+/**
+ * Suena el audio de una persona.
+ *
+ * Si el navegador bloquea el autoplay (o el elemento no suena por lo que sea),
+ * NO nos quedamos en silencio: avisamos para que un clic lo arranque.
+ */
+function reproducirRemoto(userId, flujo) {
+  let audio = voz.audios.get(userId);
+  if (!audio) {
+    audio = document.createElement('audio');
+    audio.autoplay = true;
+    audio.setAttribute('data-user', userId);
+    // en el DOM: hay navegadores que no reproducen elementos sueltos
+    voz.capa.appendChild(audio);
+    voz.audios.set(userId, audio);
+  }
+  audio.srcObject = flujo;
+  const p = audio.play();
+  if (p && p.catch) {
+    p.then(() => { voz.bloqueado = false; }).catch(() => {
+      voz.bloqueado = true;
+      alAviso(userId, 'sin-sonido');
+    });
+  }
+  medirVoz(flujo, userId);
+}
+
+/** Tras un clic del usuario reintentamos: el gesto destranca el audio bloqueado. */
+function reintentarAudio() {
+  if (!voz.bloqueado) return;
+  let pendientes = 0;
+  for (const audio of voz.audios.values()) {
+    if (!audio.srcObject) continue;
+    pendientes++;
+    const p = audio.play();
+    if (p && p.then) p.then(() => { if (--pendientes === 0) { voz.bloqueado = false; } }).catch(() => { pendientes--; });
+    else pendientes--;
+  }
+  if (pendientes === 0) voz.bloqueado = false;
 }
 
 function cerrarConexion(userId) {
@@ -400,6 +460,39 @@ function marcarHablando(userId, hablando) {
 }
 
 /**
+ * Radiografía del audio: dice si el micro envía, si hay conexiones y en qué
+ * estado está cada una. Es lo que hay que mirar cuando "no se oye nada".
+ */
+async function diagnostico() {
+  const pistas = [];
+  const pista = (t, v) => pistas.push((v ? '✓' : '✗') + ' ' + t);
+
+  pista('HTTPS (obligatorio para el micro)', window.isSecureContext);
+  pista('getUserMedia disponible', !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia));
+  pista('RTCPeerConnection disponible', typeof RTCPeerConnection !== 'undefined');
+
+  const local = voz.streamLocal?.getAudioTracks?.()[0];
+  pista('pista local viva' + (local ? ` (${local.label || local.readyState})` : ''), !!(local && local.readyState === 'live'));
+  pista('pista local conmutada a silencio', !voz.silenciado);
+  pista('nivel de entrada (0-1)', (voz.nivel ?? 0) > 0.01 ? 'hay señal, el micro funciona' : 'cero: nadie suena en tu micrófono');
+  pista('audio remoto bloqueado por el navegador', !voz.bloqueado);
+  pista('conexiones abiertas', voz.conexiones.size > 0);
+
+  const peers = [...voz.conexiones.entries()].map(([id, c]) => {
+    const cands = c.getStats ? null : null;
+    return `  · ${(estadoNombre(id) || id.slice(0, 6))}: conexión=${c.connectionState} ICE=${c.iceConnectionState} senal=${c.signalingState}`;
+  });
+  if (!peers.length) pistas.push('  (no hay ninguna conexión todavía: el otro tiene que entrar en el canal)');
+
+  return { texto: pistas.join('\n') + (peers.length ? '\n' + peers.join('\n') : ''), peers: peers.length };
+}
+
+function estadoNombre(id) {
+  const li = document.querySelector(`[data-user="${id}"] .titulo`);
+  return li ? li.textContent.replace(' (tú)', '') : null;
+}
+
+/**
  * "Centrar la voz": el que habla se oye al frente y los demás se suavizan un poco.
  * Cuando nadie habla, todo vuelve a su nivel normal.
  */
@@ -417,6 +510,7 @@ window.YTwinsVoz = {
   iniciarVoz, activarVoz, salirVoz, alternarMicro, alMensaje, alEstado,
   centrar: centrarVoz,
   dispositivos, cambiarMicro, setSensibilidad, setGanancia, setPushToTalk, hablarTemporal,
+  reintentarAudio, diagnostico,
   ajustes: () => ({ ...ajustes.datos }),
   aplicarAjustes: (a) => {
     Object.assign(ajustes.datos, a || {});
@@ -424,6 +518,7 @@ window.YTwinsVoz = {
     Object.assign(voz, a || {});
   },
   nivel: () => voz.nivel,
+  bloqueado: () => voz.bloqueado,
   estado: () => ({
     activa: voz.activa,
     silenciado: voz.silenciado,

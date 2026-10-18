@@ -82,5 +82,16 @@ ok(/\(function \(\)/.test(vozJs), 'voz.js va dentro de una IIFE (no pisa el glob
 ok((vozJs.match(/window\.YTwinsVoz\s*=/g) || []).length === 1, 'voz.js expone un único punto de entrada');
 ok(/nivel: \(\) => voz\.nivel/.test(vozJs), 'voz.js expone el nivel para el medidor');
 
+// el audio remoto tiene que estar en el DOM y avisar si el navegador lo bloquea:
+// si no, el grupo se queda en silencio sin enterarse (bug real)
+// y app.js debe registrar el manejador del diagnóstico (si app.js peta antes,
+// nada más del final del arranque se registra: es lo que pasó con miId)
+ok(/voz\.capa\.appendChild\(audio\)/.test(vozJs), 'el <audio> remoto se cuelga en el DOM');
+ok(/reintentarAudio/.test(vozJs) && /reintentarAudio/.test(app), 'app.js reintenta el audio tras un clic');
+ok(/iniciarVoz\(\{[\s\S]{0,120}miId: yoId/.test(app), 'iniciarVoz recibe miId: yoId (el identificador existe en app.js)');
+ok(!/\biniciarVoz\(\{[^}]*\bmiId\b(?!:)/.test(app), 'nadie pasa miId suelto (no existe en app.js)');
+ok(/#btn-diagnostico/.test(app) && /diagnostico/.test(vozJs), 'el diagnóstico del audio está cableado');
+ok(/cargarTurn\(\)/.test(vozJs), 'voz.js pide los servidores TURN al arrancar');
+
 console.log(fallos === 0 ? '\nTodas las pruebas pasaron ✓' : `\n${fallos} pruebas fallidas`);
 setTimeout(() => process.exit(fallos ? 1 : 0), 100);

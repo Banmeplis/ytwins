@@ -157,12 +157,23 @@ Detalles honestos:
 
 - Al ser una malla, cada persona manda N copias de su voz (N = gente en el
   canal). Se nota a partir de ~6-7 personas; el canal avisa al llegar a 12.
-- Solo se usan servidores **STUND** públicos para descubrir la dirección externa.
-  En redes muy restrictivas (algunos móviles y redes corporativas) puede hacer
-  falta un servidor **TURN**, que no se puede montar en el alojamiento gratuito.
-- Necesitas HTTPS (o `localhost`) para que el navegador dé el micrófono:
-  `cloudflared tunnel --url http://localhost:3000` ya sirve, porque por
-  delante hay HTTPS.
+- Solo se usan servidores **STUN** públicos por defecto. En redes muy
+  restrictivas, o cuando los dos equipos están en la misma wifi (Chrome
+  esconde las IP locales tras nombres `mDNS` que a veces no se resuelven),
+  hace falta un servidor **TURN**. Se añade desde el servidor sin tocar código:
+
+  ```
+  TURN_URLS = [{"urls":"turn:mi-servidor:3478","username":"user","credential":"clave"}]
+  ```
+
+  (Render/Cloudflare tienen relays de pago; los gratuitos existen pero son de
+  prueba y no dan garantía.)
+- **Diagnóstico**: en ⚙️ Opciones de micrófono está el botón 🩺 *Diagnosticar el
+  audio*. Dice si hay HTTPS, si el micro envía señal, cuántas conexiones hay y
+  en qué estado está cada una. Es lo primero que hay que mirar si "no se oye".
+- Si el navegador bloquea el audio remoto, sale un aviso **🔇 Activar sonido**;
+  cualquier clic lo destranka.
+- Necesitas HTTPS (o `localhost`) para que el navegador dé el micrófono.
 
 ### Añadir un plugin propio
 

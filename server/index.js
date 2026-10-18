@@ -320,6 +320,21 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
+  if (url.pathname === '/api/turn') {
+    // relays TURN opcionales (para redes restrictivas); vacío si no hay ninguno
+    let servidores = [];
+    try {
+      const crudo = process.env.TURN_URLS;
+      if (crudo) {
+        const p = JSON.parse(crudo);
+        if (Array.isArray(p)) servidores = p;
+      }
+    } catch { servidores = []; }
+    res.writeHead(200, { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' });
+    res.end(JSON.stringify({ servidores }));
+    return;
+  }
+
   if (url.pathname === '/api/health') {
     res.writeHead(200, { 'content-type': 'application/json; charset=utf-8' });
     res.end(JSON.stringify({ ok: true, salas: rooms.size }));
