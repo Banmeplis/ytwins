@@ -219,7 +219,95 @@ const voz = {
   },
 };
 
-export const plugins = [encuestas, notas, reacciones, voz];
+import { disponible, preguntar, contextoChat, limpiar, SIN_CONFIGURAR } from './ia.js';
+
+/**
+ * IA de sala. Apagada si el servidor no tiene OPENAI_API_KEY: los botones se
+ * ven pero avisan de que falta configurarla, sin romper nada.
+ */
+const ia = {
+  id: 'ia',
+  nombre: 'IA de sala',
+  descripcion: 'Resume la conversación, sugiere el siguiente vídeo y bautiza la sala',
+  inicializar(room) {
+    room.ia = { ultimo: null, cuando: 0 };
+  },
+  async manejar({ room, user, msg, enviar, broadcast, puedeControlar }) {
+    const accion = { 'ia.resumir': 'resumen', 'ia.sugerir': 'sugerencia', 'ia.nombre': 'nombre' }[msg.type];
+    if (!accion) return false;
+    if (!puedeControlar) {
+      enviar(user.ws, { type: 'error', message: 'Solo quien controla usa la IA de la sala.' });
+      return true;
+    }
+    const conf = disponible();
+    if (!conf.ok) {
+      enviar(user.ws, { type: 'error', message: SIN_CONFIGURAR });
+      return true;
+    }
+    if (room.ia.cuando && Date.now() - room.ia.cuando < 4000) {
+      enviar(user.ws, { type: 'error', message: 'Espera un momento antes de volver a preguntar.' });
+      return true;
+    }
+    room.ia.cuando = Date.now();
+
+    let texto = null;
+    if (accion === 'resumen') {
+      if (!room.chat.length) {
+        enviar(user.ws, { type: 'error', message: 'Aún no hay conversación que resumir.' });
+        return true;
+      }
+      texto = await preguntar(
+        [
+          { role: 'system', content: 'Resume esta conversación de una sala de visión compartida en español. Máx. 4 viñetas, sin inventar nada.' },
+          ...contextoChat(room.chat, 40),
+          { role: 'user', content: 'Resume lo dicho con viñetas.' },
+        ],
+        { maxTokens: 260 },
+      );
+    } else if (accion === 'sugerencia') {
+      const cola = room.queue.map((q) => `- ${q.title || q.url}`).join('\n') || '(vacía)';
+      texto = await preguntar(
+        [
+          { role: 'system', content: 'Eres el que decide la lista de reproducción de una sala. Responde SOLO con una línea: título del vídeo — artista. Nada más.' },
+          { role: 'user', content: `Estamos viendo ahora: ${room.playback.title || 'nada'}.\nEn la cola:\n${cola}\n¿Qué ponemos después?` },
+        ],
+        { maxTokens: 60, temperatura: 0.9 },
+      );
+    } else if (accion === 'nombre') {
+      texto = await preguntar(
+        [
+          { role: 'system', content: 'Propón un nombre corto (máx. 24 caracteres) para una sala de ver vídeos con amigos. Responde SOLO el nombre, sin comillas ni explicaciones.' },
+          { role: 'user', content: `La gente está viendo: ${room.playback.title || 'algo'}. ¿Cómo se llama la sala?` },
+        ],
+        { maxTokens: 20, temperatura: 1 },
+      );
+      if (texto) {
+        room.name = limpiar(texto).slice(0, 24);
+        broadcast();
+      }
+    }
+
+    room.ia.ultimo = texto ? limpiar(texto) : null;
+    broadcast({
+      type: 'ia',
+      accion,
+      texto: room.ia.ultimo,
+      fallo: room.ia.ultimo ? null : 'La IA no respondió. Revisa la clave o el modelo en el servidor.',
+    });
+    return true;
+  },
+  serializar(room) {
+    const conf = disponible();
+    return {
+      disponible: conf.ok,
+      modelo: conf.modelo,
+      ultimo: room.ia?.ultimo || null,
+      ultimaAccion: room.ia?.cuando ? Date.now() - room.ia.cuando < 60000 : false,
+    };
+  },
+};
+
+export const plugins = [encuestas, notas, reacciones, voz, ia];
 
 export const catalogo = plugins.map(({ id, nombre, descripcion }) => ({ id, nombre, descripcion }));
 
@@ -247,6 +335,9 @@ export const TIPOS_PLUGIN = {
   'voz.mute': 'voz',
   'voz.habla': 'voz',
   'voz.senales': 'voz',
+  'ia.resumir': 'ia',
+  'ia.sugerir': 'ia',
+  'ia.nombre': 'ia',
 };
 
 export function serializar(room) {

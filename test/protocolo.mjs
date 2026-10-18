@@ -79,8 +79,9 @@ const joined = await esperar(A, 'joined');
 ok(/^[A-Z2-9]{6}$/.test(joined.code), `sala creada con código ${joined.code}`);
 let st = await estado(A);
 ok(st.hostId === joined.userId, 'la creadora es anfitriona');
-ok(st.plugins && st.plugins.catalogo.length === 4, 'catálogo de plugins publicado en el estado');
+ok(st.plugins && st.plugins.catalogo.length === 5, 'catálogo de plugins publicado en el estado');
 ok(st.plugins.catalogo.some((p) => p.id === 'voz'), 'el plugin de voz está en el catálogo');
+ok(st.plugins.catalogo.some((p) => p.id === 'ia'), 'el plugin de IA está en el catálogo');
 
 // 2. segundo cliente se une
 const B = cliente();
@@ -308,6 +309,28 @@ ok(st.plugins.activos.voz === false, 'anfitrión desactiva el plugin de voz');
 send(A, { type: 'voz.join' });
 const errVoz = await esperar(A, 'error');
 ok(/desactivado/.test(errVoz.message), 'con la voz desactivada se rechazan sus mensajes');
+
+// 31. el plugin de IA existe y avisa si falta configurarla (no revienta)
+const e31b = estado(A);
+send(A, { type: 'plugin.toggle', id: 'ia', on: false });
+st = await e31b;
+ok(st.plugins.activos.ia === false, 'el anfitrión puede apagar la IA');
+send(A, { type: 'ia.resumir' });
+const errIaOff = await esperar(A, 'error');
+ok(/desactivado/.test(errIaOff.message), 'con la IA apagada se rechazan sus mensajes');
+send(A, { type: 'plugin.toggle', id: 'ia', on: true });
+st = await estado(A);
+ok(st.plugins.activos.ia === true, 'y se vuelve a encender');
+
+const d = st.plugins.estado.ia;
+ok(typeof d.disponible === 'boolean', 'el estado dice si la IA está configurada');
+if (!d.disponible) {
+  send(A, { type: 'ia.resumir' });
+  const errIa = await esperar(A, 'error');
+  ok(/OPENAI_API_KEY/.test(errIa.message), 'sin clave explica exactamente qué falta, sin romperse');
+} else {
+  ok(true, 'la IA está configurada en este servidor');
+}
 
 console.log(fallos === 0 ? '\nTodas las pruebas pasaron ✓' : `\n${fallos} pruebas fallidas`);
 A.close();

@@ -131,6 +131,14 @@ function abrirSocket() {
         }
         break;
 
+      case 'ia':
+        if (msg.texto) {
+          toast(msg.accion === 'nombre' ? 'Sala renombrada por la IA ✨' : 'Respuesta lista en ✨ Extras');
+        } else if (msg.fallo) {
+          toast(msg.fallo, true);
+        }
+        break;
+
       case 'error':
         if (msg.fatal) {
           sessionStorage.removeItem('yr-ultima');
@@ -417,6 +425,7 @@ function render() {
   renderEncuestas();
   renderNotas();
   renderExtras();
+  renderIA();
   pintarBotonVoz();
   window.YTwinsVoz?.alEstado(dPlugin('voz')?.participantes || []);
   renderCola();
@@ -784,8 +793,51 @@ function renderNotas() {
 function renderExtras() {
   // el desplegable "Extras" solo aparece si tiene algo que mostrar
   const hayAlgo =
-    !$('#caja-plugins').hidden || !$('#seccion-encuestas').hidden || !$('#seccion-notas').hidden;
+    !$('#caja-plugins').hidden || !$('#seccion-encuestas').hidden ||
+    !$('#seccion-notas').hidden || !$('#seccion-ia').hidden;
   $('#panel-extras').hidden = !hayAlgo;
+}
+
+/* ------------------------------ IA de sala ------------------------------ */
+function renderIA() {
+  const seccion = $('#seccion-ia');
+  seccion.hidden = !pluginActivo('ia');
+  if (seccion.hidden) return;
+
+  const d = dPlugin('ia') || {};
+  const lista = $('#ia-estado');
+  const salida = $('#ia-salida');
+  for (const b of document.querySelectorAll('.ia-btn')) b.disabled = !d.disponible || !puedoControlar();
+
+  if (!d.disponible) {
+    lista.textContent = 'Apagada: falta la clave OPENAI_API_KEY en el servidor.';
+  } else if (!puedoControlar()) {
+    lista.textContent = 'Solo quien controla puede usar la IA de la sala.';
+  } else {
+    lista.textContent = `Lista con ${d.modelo}. Pregunta lo que quieras de la sala.`;
+  }
+
+  if (d.ultimo) {
+    salida.hidden = false;
+    salida.textContent = d.ultimo;
+  } else if (!salida.hidden && salida.dataset.manual !== '1') {
+    salida.hidden = true;
+  }
+}
+
+function conectarIA() {
+  for (const b of document.querySelectorAll('.ia-btn')) {
+    b.onclick = () => {
+      const accion = b.dataset.ia;
+      b.classList.add('cargando');
+      const salida = $('#ia-salida');
+      salida.dataset.manual = '1';
+      salida.hidden = false;
+      salida.textContent = 'Pensando…';
+      enviar({ type: accion === 'resumen' ? 'ia.resumir' : accion === 'sugerencia' ? 'ia.sugerir' : 'ia.nombre' });
+      setTimeout(() => b.classList.remove('cargando'), 8000);
+    };
+  }
 }
 
 /* --------------------------------- cola --------------------------------- */
@@ -1104,6 +1156,7 @@ document.addEventListener('keydown', (e) => {
 
 // Opciones de micrófono (se recuerdan entre sesiones)
 conectarOpcionesVoz();
+conectarIA();
 pintarOpcionesVoz();
 const conexionesVoz = new Map(); // userId -> 'fallo' (voz que no llega)
 

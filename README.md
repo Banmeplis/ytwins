@@ -26,9 +26,10 @@ Abre <http://localhost:3000>.
 Con el servidor arrancado, en otra terminal:
 
 ```bash
-npm test              # todo (cliente, protocolo, fuentes, persistencia, base de datos)
+npm test              # todo (cliente, IA, protocolo, fuentes, persistencia, base de datos)
 npm run test:cliente    # 11 pruebas de los scripts del cliente
-npm run test:protocolo  # 45 pruebas de protocolo de sala
+npm run test:ia         # 14 pruebas del módulo de IA
+npm run test:protocolo  # 50 pruebas de protocolo de sala
 npm run test:fuentes    # 29 pruebas de fuentes, metadatos y /api/search
 npm run test:persistencia  # 33 pruebas de guardado/carga de salas
 ```
@@ -98,6 +99,26 @@ Sin resultados o caído YouTube → la app lo avisa y puedes pegar el enlace a m
 | **Notas compartidas** | Bloc de texto que ve toda la sala (edita quien controla) | `notes.set` |
 | **Reacciones** | Emojis que vuelan sobre el vídeo (anti-spam 700 ms) | `reaction` |
 | **Voz** | Micrófono en tiempo real con WebRTC (malla P2P) | `voz.join`, `voz.leave`, `voz.mute`, `voz.habla`, `voz.senales` |
+| **IA de sala** | Resume la conversación, sugiere el siguiente vídeo y bautiza la sala (necesita clave de API) | `ia.resumir`, `ia.sugerir`, `ia.nombre` |
+
+### Activar la IA (opcional)
+
+Sin clave funciona todo lo demás; los botones de IA salen apagados y lo dicen.
+Para encenderla:
+
+1. Consigue una clave en OpenAI, Groq, Together… (o usa **Ollama en tu PC**).
+2. En Render → tu servicio `ytwins` → *Environment* → añade:
+
+   ```
+   OPENAI_API_KEY = sk-...
+   OPENAI_BASE_URL = https://api.openai.com/v1   (opcional)
+   OPENAI_MODEL    = gpt-4o-mini                 (opcional)
+   ```
+
+3. Guarda y Render reconstruye. En **✨ Extras → IA de sala** aparecen los botones.
+
+La clave **solo existe en el servidor**: el navegador nunca la ve. Si el modelo
+falla o agota el tiempo, la sala sigue funcionando y solo se avisa.
 
 ## Chat de voz en tiempo real
 
@@ -314,7 +335,8 @@ ytwins/
 ├─ server/
 │  ├─ index.js        HTTP + WebSocket, salas, roles, cola, sync, /api/search
 │  ├─ fuentes.js      clasificación de enlaces, metadatos, buscador
-│  ├─ plugins.js      registro de plugins (encuestas, notas, reacciones, voz)
+│  ├─ plugins.js      registro de plugins (encuestas, notas, reacciones, voz, IA)
+│  ├─ ia.js           llamada opcional a una API de IA (clave solo en el servidor)
 │  └─ persistencia.js salas en data/salas.json o en PostgreSQL (DATABASE_URL)
 ├─ public/
 │  ├─ index.html      lobby y vista de sala
@@ -340,6 +362,7 @@ ytwins/
 | `role.set`, `kick`, `policy`, `skip.vote` | `plugin` (`miVoto`, privado) |
 | `plugin.toggle`, `poll.*`, `notes.set`, `reaction` | `voz.lista`, `voz.habla` (eventos efímeros) |
 | `voz.join/leave/mute/habla/senales` | `voz.senales` (señalización reenviada) |
+| `ia.resumir`, `ia.sugerir`, `ia.nombre` | `ia` (respuesta de la IA para todos) |
 
 Endpoints: `GET /api/search?q=…`, `GET /api/health`.
 
