@@ -114,7 +114,7 @@
             <button class="btn primario" type="submit">Buscar</button>
           </form>
           <p class="aviso" id="aviso-buscar" hidden></p>
-          <ul id="lista-resultados" class="lista"></ul>
+          <ul id="lista-resultados" class="lista lista-tarjetas"></ul>
         </div>
 
         <div id="vista-cola" class="pestana-vista" hidden>
@@ -152,8 +152,12 @@
           <summary>⚙️ Opciones de micrófono</summary>
           <div class="opciones-cuerpo">
             <label class="opcion">
-              <span>Micrófono</span>
-              <select id="sel-micro"><option value="">El del sistema</option></select>
+              <span>Micrófono <i id="val-micro">—</i></span>
+              <div class="fila-sel">
+                <select id="sel-micro"></select>
+                <button id="btn-refrescar-micro" class="btn micro-refrescar" title="Buscar más dispositivos" aria-label="Buscar más dispositivos">🔄</button>
+              </div>
+              <small class="pista" id="pista-micro">Activa el micro una vez para ver todos los dispositivos con su nombre.</small>
             </label>
 
             <label class="opcion">

@@ -117,13 +117,23 @@ async function prepararSalida(stream) {
   }
 }
 
-/** Micrófonos disponibles (solo los nombra el navegador tras conceder permiso). */
+/**
+ * Micrófonos disponibles.
+ *
+ * Antes de conceder permiso el navegador esconde los nombres y a veces casi
+ * todos los dispositivos, así que devolvemos también los que aún no tienen
+ * etiqueta (como "Micrófono 3") para que se puedan elegir sin adivinar.
+ */
 async function dispositivos() {
   try {
     const todos = await navigator.mediaDevices.enumerateDevices();
-    return todos
-      .filter((d) => d.kind === 'audioinput')
-      .map((d, i) => ({ id: d.deviceId, nombre: d.label || `Micrófono ${i + 1}` }));
+    const entradas = todos.filter((d) => d.kind === 'audioinput');
+    return entradas.map((d, i) => ({
+      id: d.deviceId,
+      nombre: d.label || `Micrófono ${i + 1} (sin nombre)`,
+      porDefecto: d.deviceId === 'default',
+      enUso: d.deviceId === 'communications',
+    }));
   } catch {
     return [];
   }

@@ -537,25 +537,49 @@ function pintarOpcionesVoz() {
   pintarMedidor();
 }
 
-/** Rellena el desplegable con los micrófonos reales (el navegador solo los nombra con permiso). */
+/**
+ * Rellena el desplegable con TODOS los dispositivos de entrada.
+ * El navegador solo da los nombres tras conceder el permiso de micrófono, así
+ * que antes de eso mostramos los que pueda con nombres provisionales.
+ */
 async function listarMicros() {
   const sel = $('#sel-micro');
   if (!sel) return;
   const lista = await window.YTwinsVoz?.dispositivos?.() || [];
   const elegido = window.YTwinsVoz?.ajustes?.().microfonoId || '';
+
+  const sinNombre = lista.filter((d) => !d.nombre || d.nombre.includes('sin nombre')).length;
   sel.innerHTML = '';
-  const porDefecto = document.createElement('option');
-  porDefecto.value = '';
-  porDefecto.textContent = lista.length ? `Por defecto (${lista[0].nombre})` : 'El del sistema';
-  sel.appendChild(porDefecto);
+
+  const automatico = document.createElement('option');
+  automatico.value = '';
+  automatico.textContent = lista.length ? 'Automático (el que usa el sistema)' : 'Micrófono del sistema';
+  sel.appendChild(automatico);
+
   for (const d of lista) {
+    // "Automático" ya está: no lo repetimos como una entrada más
+    if (d.porDefecto) continue;
     const o = document.createElement('option');
     o.value = d.id;
-    o.textContent = d.nombre;
+    o.textContent = d.nombre + (d.enUso ? ' (comunicaciones)' : '');
     sel.appendChild(o);
   }
-  sel.value = elegido;
-  if (sel.selectedIndex < 0) sel.value = lista[0]?.id || '';
+
+  // el que Sigue siendo el elegido, aunque el navegador cambie los ids
+  if (elegido && [...sel.options].some((o) => o.value === elegido)) sel.value = elegido;
+  else if (sel.selectedIndex > 0) sel.value = sel.options[1].value; // el primero con nombre real
+  else sel.value = '';
+
+  const n = sel.options.length - 1;
+  $('#val-micro').textContent = n > 0 ? `${n} disponible${n === 1 ? '' : 's'}` : '—';
+  const pista = $('#pista-micro');
+  if (pista) {
+    pista.textContent = sinNombre > 0
+      ? 'Activa el micro 🎙️ una vez y pulsa 🔄 para ver los nombres reales.'
+      : n > 1
+        ? 'Cambia de micrófono sin salir del canal.'
+        : 'Solo se ve un micrófono. Conecta otro y pulsa 🔄.';
+  }
 }
 
 /** Medidor de nivel: sirve para ver si el micro oye y si el umbral está bien. */
@@ -579,14 +603,30 @@ function pintarMedidor() {
 }
 
 function conectarOpcionesVoz() {
-  $('#btn-voz-opciones').onclick = () => { $('#opciones-voz').open = !$('#opciones-voz').open; };
+  $('#btn-voz-opciones').onclick = () => {
+    $('#opciones-voz').open = !$('#opciones-voz').open;
+    if ($('#opciones-voz').open) listarMicros(); // al abrir, muestra todo lo que haya
+  };
 
   $('#sel-micro').onchange = async (e) => {
     const r = await window.YTwinsVoz.cambiarMicro(e.target.value);
     if (!r.ok) return toast(r.error, true);
     window.YTwinsVoz.aplicarAjustes({ microfonoId: e.target.value });
-    toast('Micrófono cambiado');
+    toast(e.target.value ? 'Micrófono cambiado' : 'Micrófono automático');
+    listarMicros();
   };
+
+  // botón de refresco + detección al enchufar/desenchufar un micro
+  $('#btn-refrescar-micro').onclick = async () => {
+    await listarMicros();
+    const n = $('#sel-micro').options.length - 1;
+    toast(n > 0 ? `${n} micrófono(s) encontrados` : 'No se ve ningún micrófono');
+  };
+  if (navigator.mediaDevices?.addEventListener) {
+    navigator.mediaDevices.addEventListener('devicechange', () => {
+      if ($('#panel-extras').open || window.YTwinsVoz?.estado?.().activa) listarMicros();
+    });
+  }
 
   $('#in-sensibilidad').oninput = (e) => {
     const v = Number(e.target.value) / 100;
@@ -935,29 +975,38 @@ function renderResultados() {
 
   for (const r of resultados) {
     const li = document.createElement('li');
-    li.className = 'accion';
+    li.className = 'tarjeta';
     li.append(nodoThumb(r));
 
     const cuerpo = document.createElement('div');
     cuerpo.className = 'cuerpo-item';
     cuerpo.innerHTML = `<span class="titulo"></span><span class="meta"></span>`;
     cuerpo.querySelector('.titulo').textContent = r.title;
+    cuerpo.querySelector('.titulo').title = r.title;
     cuerpo.querySelector('.meta').textContent = [r.canal, r.duration, r.views].filter(Boolean).join(' · ');
     li.append(cuerpo);
 
+    const botones = document.createElement('div');
+    botones.className = 'botones-item';
     const add = document.createElement('button');
     add.className = 'btn';
     add.textContent = '+ Cola';
+    add.title = 'Añadir a la cola';
     add.onclick = () => { enviar({ type: 'queue.add', videoId: r.url, title: r.title }); toast('Añadido a la cola'); };
-
-    li.append(add);
+    botones.append(add);
     if (controla) {
       const ya = document.createElement('button');
       ya.className = 'btn primario';
       ya.textContent = '▶ Ver';
+      ya.title = 'Reproducirlo ahora en la sala';
       ya.onclick = () => enviar({ type: 'queue.add', videoId: r.url, title: r.title, playNow: true });
-      li.append(ya);
+      botones.prepend(ya);
     }
+    li.append(botones);
+
+    // toda la miniatura también sirve para dar al play
+    if (controla) li.querySelector('.thumb')?.addEventListener('click', () => enviar({ type: 'queue.add', videoId: r.url, title: r.title, playNow: true }));
+
     ul.appendChild(li);
   }
 }
