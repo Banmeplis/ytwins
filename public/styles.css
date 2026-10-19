@@ -163,7 +163,7 @@ h1,h2{margin:0}
 .barra-der{flex:0 0 auto}
 /* Pantalla ancha: reproductor grande + lista al lado + sala/chat a la derecha.
    El reproductor se lleva el espacio sobrante (prioridad), las otras dos son fijas. */
-.rejilla{display:grid;grid-template-columns:minmax(0,1fr) 380px 330px;gap:16px;padding:18px;max-width:1800px;margin:0 auto}
+.rejilla{display:grid;grid-template-columns:minmax(0,1fr) 420px 330px;gap:16px;padding:18px;max-width:1820px;margin:0 auto}
 @media (max-width:1279px){
   .rejilla{grid-template-columns:minmax(0,1fr) 380px;max-width:1180px}
   .rejilla.lista-plegada{grid-template-columns:minmax(0,1fr) 54px}
@@ -246,6 +246,7 @@ h1,h2{margin:0}
 .plegar:focus-visible{outline:2px solid var(--acento2);outline-offset:2px}
 .plegar[aria-expanded="false"]{transform:rotate(-90deg);color:var(--acento2);
   background:rgba(77,163,255,.12);border-color:var(--line-viva)}
+.plegar.on{background:rgba(255,61,90,.14);border-color:rgba(255,120,150,.4);color:#ffb3c0}
 
 /* en PC la columna se encoge a una barrita con la flecha */
 .rejilla.lista-plegada{grid-template-columns:minmax(0,1fr) 54px 330px}
@@ -429,10 +430,11 @@ details.extras summary:hover{color:var(--txt)}
 .poll-meta{color:var(--dim);font-size:12px;margin:6px 0}
 
 /* ------------------ buscador: tarjetas de dos en dos -------------------- */
-/* ------------------ buscador: tarjetas de dos en dos -------------------- */
-/* auto-fit: 2 columnas cuando hay sitio de sobra y 1 cuando no, para que
-   nunca queden tan pequeñas que no se lean */
-.lista-tarjetas{display:grid;grid-template-columns:repeat(auto-fit,minmax(156px,1fr));gap:10px}
+/* ------------------ buscador: tarjetas (1 grande o 2 por fila) ----------
+ * Por defecto una sola columna: la miniatura se ve de sobra.
+ * Con el botón "▦" se pasan a dos por fila (más resultados a la vista). */
+.lista-tarjetas{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:10px}
+.lista-tarjetas.compacta{grid-template-columns:repeat(2,minmax(0,1fr))}
 .lista-tarjetas li.tarjeta{display:flex;flex-direction:column;align-items:stretch;gap:7px;padding:8px;
   background:rgba(255,255,255,.035);border:1px solid var(--line);border-radius:13px}
 .lista-tarjetas li.tarjeta:hover{border-color:var(--line-viva);background:rgba(255,255,255,.06)}

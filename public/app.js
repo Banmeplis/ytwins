@@ -1163,6 +1163,19 @@ document.querySelectorAll('.pestana').forEach((b) => {
   };
 });
 
+/* --------------------------- columnas del buscador ---------------------- */
+const CLAVE_COLUMNAS = 'yr-dos-columnas';
+
+function dosColumnas(activo) {
+  $('#lista-resultados').classList.toggle('compacta', activo);
+  const b = $('#btn-columnas');
+  b.classList.toggle('on', activo);
+  b.title = activo ? 'Ver los vídeos en una columna (miniaturas grandes)' : 'Ver los vídeos en dos columnas';
+  try { localStorage.setItem(CLAVE_COLUMNAS, activo ? '1' : '0'); } catch {}
+}
+$('#btn-columnas').onclick = () => dosColumnas(!$('#lista-resultados').classList.contains('compacta'));
+try { dosColumnas(localStorage.getItem(CLAVE_COLUMNAS) === '1'); } catch {}
+
 /* --------------------------- chat flotante ----------------------------- */
 const CLAVE_CHAT = 'yr-chat-abierto';
 let chatSinLeer = 0;
