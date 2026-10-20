@@ -899,9 +899,19 @@ function nodoThumb(item) {
     // navegador NO cargaba ninguna miniatura (se quedaba en blanco).
     img.decoding = 'async';
     img.referrerPolicy = 'no-referrer';
-    img.src = item.thumbnail;
     img.alt = '';
-    img.onerror = () => { const d = document.createElement('div'); d.className = 'thumb'; d.textContent = '🎬'; img.replaceWith(d); };
+    // pedimos la versión grande (hq720, 1280x720) porque el recorte 4:3
+    // necesita ~1,6x más píxeles; si no existe (vídeos viejos) caemos a la
+    // que manda el buscador y de ahí al hueco con el emoji
+    let caida = 0;
+    const grande = item.fuente === 'youtube' && item.ref
+      ? `https://i.ytimg.com/vi/${item.ref}/hq720.jpg` : null;
+    img.onerror = () => {
+      caida++;
+      if (caida === 1 && grande) { img.src = item.thumbnail; return; }
+      const d = document.createElement('div'); d.className = 'thumb'; d.textContent = '🎬'; img.replaceWith(d);
+    };
+    img.src = grande || item.thumbnail;
     return img;
   }
   const d = document.createElement('div');
