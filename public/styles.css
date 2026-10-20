@@ -438,8 +438,10 @@ details.extras summary:hover{color:var(--txt)}
    y eso le quita la altura minima automatica al ser un item flexible) y solo
    se ve una franja de la miniatura, como tiritas de película. Con
    max-content cada fila mide lo que de verdad ocupa su tarjeta. */
-.lista-tarjetas{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));grid-auto-rows:max-content;gap:10px}
-.lista-tarjetas.compacta{grid-template-columns:repeat(2,minmax(0,1fr))}
+/* dos tarjetas por fila: pide el usuario. El botón "▤" de la cabecera
+   vuelve a la vista de una columna (miniaturas gigantes) si lo prefieres. */
+.lista-tarjetas{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));grid-auto-rows:max-content;gap:10px}
+.lista-tarjetas.ancha{grid-template-columns:minmax(0,1fr)}
 /* red de seguridad: no deja que el grid ni ningún contenedor flexible
    encojan la tarjeta por debajo de lo que pide su contenido */
 .lista-tarjetas li.tarjeta{display:flex;flex-direction:column;align-items:stretch;gap:7px;padding:8px;
