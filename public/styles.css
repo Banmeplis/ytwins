@@ -438,10 +438,11 @@ details.extras summary:hover{color:var(--txt)}
 .lista-tarjetas li.tarjeta{display:flex;flex-direction:column;align-items:stretch;gap:7px;padding:8px;
   background:rgba(255,255,255,.035);border:1px solid var(--line);border-radius:13px}
 .lista-tarjetas li.tarjeta:hover{border-color:var(--line-viva);background:rgba(255,255,255,.06)}
-/* el recorte 4:3: YouTube da la imagen en 16:9 pero a esa medida pesan más
-   de lado que de alto y apenas se distingue nada; con 4:3 ganan presencia
-   vertical y object-fit:cover recorta los lados sin deformar la foto */
-.lista-tarjetas .thumb{width:100%;height:auto;aspect-ratio:4/3;object-fit:cover;border-radius:9px;cursor:pointer;
+/* el recorte 1:1 (cuadrado): YouTube da la imagen en 16:9 pero a esa medida
+   pesan más de lado que de alto y apenas se distingue nada; con el cuadrado
+   ganan mucha presencia vertical y object-fit:cover recorta los lados
+   sin deformar la foto */
+.lista-tarjetas .thumb{width:100%;height:auto;aspect-ratio:1/1;object-fit:cover;border-radius:9px;cursor:pointer;
   background:#0b0e14 center/cover no-repeat}
 .lista-tarjetas .cuerpo-item{display:flex;flex-direction:column;gap:3px;min-width:0;flex:1}
 .lista-tarjetas .titulo{font-size:13px;line-height:1.35;color:var(--txt);font-weight:500;
