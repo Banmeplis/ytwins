@@ -168,6 +168,13 @@ function abrirSocket() {
   ws.onclose = () => {
     if (expulsado) return cerrar();
     if (!estado) return; // aún en el lobby
+    // si se cae la conexión ya no estás en la sala: el micro se apaga
+    // (nada de seguir grabando sin que nadie te escuche)
+    if (window.YTwinsVoz?.estado?.().activa) {
+      window.YTwinsVoz.salirVoz();
+      pintarBotonVoz();
+      toast('Se ha cortado la conexión: micro apagado.', true);
+    }
     reconectar();
   };
 }
@@ -260,6 +267,12 @@ const repListo = () => !!(rep && (typeof rep.listo === 'function' ? rep.listo() 
 /** Sincroniza el reproductor local con el estado autoritativo del servidor. */
 function aplicarEstado(soloSync = false) {
   if (!estado) return;
+  // si el anfitrión desactiva el plugin de voz, el micro se apaga al momento
+  if (!vozPluginActivo() && window.YTwinsVoz?.estado?.().activa) {
+    window.YTwinsVoz.salirVoz();
+    pintarBotonVoz();
+    toast('El anfitrión ha desactivado la voz: micro apagado.', true);
+  }
   const pb = estado.playback;
   const hayVideo = !!pb.ref;
 

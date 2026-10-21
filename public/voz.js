@@ -445,6 +445,18 @@
     cerrarTodo();
   }
 
+  /**
+   * Apaga el micro sin más: para cuando la sala se abandona, se cae la
+   * conexión o el anfitrión desactiva el plugin de voz. El navegador puede
+   * seguir con el botón de "grabando" encendido si no paramos las pistas.
+   */
+  function pararMicro() {
+    for (const t of voz.streamMicro?.getTracks?.() || []) { try { t.stop(); } catch {} }
+    try { voz.envioCtx?.close?.(); } catch {}
+    voz.envioCtx = null;
+    voz.streamMicro = null;
+  }
+
   function cerrarTodo() {
     clearInterval(vigiante); vigiante = null;
     clearInterval(bombeo); bombeo = null;
@@ -452,7 +464,13 @@
     try { voz.envioGanancia?.disconnect?.(); } catch {}
     try { voz.envioAnalizador?.disconnect?.(); } catch {}
     try { voz.vigor?.disconnect?.(); } catch {}
-    for (const t of voz.streamMicro?.getTracks?.() || []) { try { t.stop(); } catch {} }
+    for (const t of voz.streamMicro?.getTracks?.() || []) { try { t.stop(); } catch {}
+    }
+    // cerrar los contextos suelta el micro y la salida de audio del sistema
+    try { voz.envioCtx?.close?.(); } catch {}
+    try { voz.ctx?.close?.(); } catch {}
+    voz.envioCtx = null;
+    voz.ctx = null;
     voz.envioFuente = null;
     voz.envioGanancia = null;
     voz.envioAnalizador = null;
@@ -654,11 +672,19 @@
     return salida;
   }
 
+  // si la pestaña se cierra o se va a segundo plano para siempre, el micro
+  // se apaga de inmediato: nada de quedarse grabando en el escritorio
+  if (typeof window !== 'undefined') {
+    for (const ev of ['pagehide', 'beforeunload']) {
+      window.addEventListener(ev, () => { if (voz.activa) { pararMicro(); voz.activa = false; } }, { capture: true });
+    }
+  }
+
   window.YTwinsVoz = {
     iniciarVoz, activarVoz, salirVoz, alternarMicro, alMensaje, alEstado,
     centrar: centrarVoz,
     dispositivos, cambiarMicro, setSensibilidad, setGanancia, setPushToTalk, hablarTemporal,
-    reintentarAudio, diagnostico, depurar,
+    reintentarAudio, diagnostico, depurar, pararMicro,
     ajustes: () => ({ ...ajustes.datos }),
     aplicarAjustes: (a) => {
       Object.assign(ajustes.datos, a || {});

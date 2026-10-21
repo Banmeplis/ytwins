@@ -123,5 +123,14 @@ ok(/case 'playback\.ended'/.test(serverJs), 'el servidor acepta el aviso de fin 
 ok(/case 'playback\.duracion'/.test(serverJs), 'el servidor guarda la duración real');
 ok(/posicionActual\(room\) >= pb\.duration|posicionActual\(room\) < pb\.duration/.test(serverJs), 'el servidor comprueba el final del vídeo por su cuenta');
 
+// el micro solo debe vivir dentro de la sala: si sales, se cae la conexión
+// o el anfitrión desactiva el plugin, el micrófono se apaga de verdad
+ok(/pararMicro/.test(vozJs), 'voz.js tiene una parada explícita del micro');
+ok(/pagehide/.test(vozJs) && /beforeunload/.test(vozJs), 'el micro se apaga al cerrar la pestaña');
+ok(/t\.stop\(\)/.test(vozJs), 'las pistas del micro se detienen (el navegador deja de grabar)');
+ok(/salirVoz\(\)/.test(app), 'al cerrar la sala se apaga el micro');
+ok(/ws\.onclose[\s\S]{0,600}salirVoz\(\)/.test(app), 'si se cae la conexión, el micro se apaga');
+ok(/!vozPluginActivo\(\)[\s\S]{0,400}salirVoz\(\)/.test(app), 'si el anfitrión desactiva la voz, el micro se apaga');
+
 console.log(fallos === 0 ? '\nTodas las pruebas pasaron ✓' : `\n${fallos} pruebas fallidas`);
 setTimeout(() => process.exit(fallos ? 1 : 0), 100);

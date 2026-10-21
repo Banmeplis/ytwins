@@ -151,6 +151,11 @@ El botón **🎙️ Voz** de la barra superior abre un canal de audio para la sa
   ofertas cruzadas ni manos cruzadas. Si el servidor se reinicia, los que
   estaban en el canal vuelven a entrar solos.
 - Cerrar la pestaña o salir de la sala apaga el micrófono y cierra las conexiones.
+- **El micro solo vive dentro de la sala**: si sales con el botón, si se cae la
+  conexión, si el anfitrión desactiva el plugin de voz o si cierras la pestaña,
+  el micrófono se apaga de verdad (se detienen las pistas y se sueltan los
+  contextos de audio, para que el navegador no siga con el "grabando"
+  encendido). Hay que volver a pulsar 🎙️ para volver a hablar.
 - Detecta quién está hablando con el nivel de audio y **centra la voz**: el que
   habla se oye al frente y los demás se suavizan; si nadie habla, todo vuelve.
 - **Opciones de micrófono** (⚙️ junto al micro):
