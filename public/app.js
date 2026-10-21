@@ -121,7 +121,7 @@ function abrirSocket() {
         break;
 
       case 'voz.lista':
-      case 'voz.senales':
+      case 'voz.audio':
         window.YTwinsVoz?.alMensaje(msg);
         break;
 
@@ -739,7 +739,7 @@ function pintarBotonVoz() {
     : v.activa
       ? v.ptt
         ? 'Mantén pulsado para hablar · Shift+clic para salir del canal'
-        : `Estás en el canal de voz · ${v.conexiones} conexión(es). Clic para silenciar, Shift+clic para salir.`
+        : `Estás en el canal de voz · ${v.conexiones} persona(s) más. Clic para silenciar, Shift+clic para salir.`
       : 'Entrar al canal de voz con tu micrófono';
 }
 

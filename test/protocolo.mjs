@@ -254,15 +254,15 @@ send(A, { type: 'voz.mute', silenciado: true });
 st = await e24;
 ok(st.plugins.estado.voz.participantes.find((p) => p.id === joined.userId).silenciado === true, 'A se silencia y los demás lo ven');
 
-// 25. señalización WebRTC reenviada solo al destinatario
-const senV = esperar(V, 'voz.senales');
-send(A, { type: 'voz.senales', para: joinedV.userId, sdp: { type: 'offer', sdp: 'v=0...' } });
-const sV = await senV;
-ok(sV.de === joined.userId && sV.sdp.type === 'offer', 'la oferta de A llega a Vera con su identificador');
-const senA = esperar(A, 'voz.senales');
-send(V, { type: 'voz.senales', para: joined.userId, ice: { candidate: 'cand', sdpMid: '0' } });
-const sA = await senA;
-ok(sA.de === joinedV.userId && sA.ice.candidate === 'cand', 'el candidato ICE de Vera llega a A');
+// 25. el audio del micro viaja por el servidor: lo manda A y lo recibe Vera
+const audioV = esperar(V, 'voz.audio');
+send(A, { type: 'voz.audio', seq: 7, datos: 'QUJD' });
+const av = await audioV;
+ok(av.de === joined.userId && av.seq === 7 && av.datos === 'QUJD', 'el audio de A llega a Vera con su identificador');
+const audioA = esperar(A, 'voz.audio');
+send(V, { type: 'voz.audio', seq: 3, datos: 'WFla' });
+const aa = await audioA;
+ok(aa.de === joinedV.userId && aa.seq === 3, 'el audio de Vera llega a A');
 
 // 26. "está hablando" es un evento efímero
 const hablaA = esperar(A, 'voz.habla');
@@ -277,17 +277,17 @@ send(A, { type: 'voz.leave' });
 st = await e27;
 ok(st.plugins.estado.voz.participantes.length === 1, 'al salir del canal desaparece de la lista');
 
-// 28. alguien que no está en el canal no puede señalizar
+// 28. alguien que no está en el canal no puede mandar audio
 drenar(A);
 send(V, { type: 'voz.leave' });
 await new Promise((r) => setTimeout(r, 600));
 drenar(A);
-send(V, { type: 'voz.senales', para: joined.userId, sdp: { type: 'offer' } });
+send(V, { type: 'voz.audio', seq: 1, datos: 'WFla' });
 send(A, { type: 'chat', text: 'tranquilo' });
 st = await esperarChat(A, 'tranquilo');
-ok(st.chat.at(-1).text === 'tranquilo', 'señalar fuera del canal se ignora sin romper nada');
-const sawSenales = buf(A).some((x) => { try { return JSON.parse(x).type === 'voz.senales'; } catch { return false; } });
-ok(!sawSenales, 'el mensaje de señalización de quien está fuera del canal no se reenvía');
+ok(st.chat.at(-1).text === 'tranquilo', 'mandar audio fuera del canal se ignora sin romper nada');
+const sawAudio = buf(A).some((x) => { try { return JSON.parse(x).type === 'voz.audio'; } catch { return false; } });
+ok(!sawAudio, 'el audio de quien está fuera del canal no se reenvía');
 
 // 29. al desconectar se sale del canal
 drenar(A);

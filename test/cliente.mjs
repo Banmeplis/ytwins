@@ -86,19 +86,31 @@ ok(/nivel: \(\) => voz\.nivel/.test(vozJs), 'voz.js expone el nivel para el medi
 // si no, el grupo se queda en silencio sin enterarse (bug real)
 // y app.js debe registrar el manejador del diagnóstico (si app.js peta antes,
 // nada más del final del arranque se registra: es lo que pasó con miId)
-ok(/voz\.capa\?*\.appendChild\(audio\)/.test(vozJs), 'el <audio> remoto se cuelga en el DOM');
+// la voz nueva viaja POR EL SERVIDOR (el mismo WebSocket de la sala): sin
+// WebRTC, sin TURN, sin autoplay de tráfico de red. Lo que no puede faltar:
+// captura con AudioWorklet, envío por el WS, reintento tras un clic, y el
+// vigilante del canal de captura (si app.js petara antes de registrarse,
+// nada del final del arranque funcionaría: es lo que pasó con miId)
 ok(/reintentarAudio/.test(vozJs) && /reintentarAudio/.test(app), 'app.js reintenta el audio tras un clic');
 ok(/iniciarVoz\(\{[\s\S]{0,120}miId: yoId/.test(app), 'iniciarVoz recibe miId: yoId (el identificador existe en app.js)');
 ok(!/\biniciarVoz\(\{[^}]*\bmiId\b(?!:)/.test(app), 'nadie pasa miId suelto (no existe en app.js)');
 ok(/#btn-diagnostico/.test(app) && /diagnostico/.test(vozJs), 'el diagnóstico del audio está cableado');
-ok(/cargarTurn\(\)/.test(vozJs), 'voz.js pide los servidores TURN al arrancar');
+ok(!/RTCPeerConnection/.test(vozJs), 'la voz ya no usa WebRTC (el servidor reparte el audio)');
+ok(!/cargarTurn/.test(vozJs), 'ya no hacen falta servidores TURN');
 
-// el audio remoto va por WebAudio (un solo contexto) y no por <audio>: es lo
-// que evita el bloqueo de autoplay que dejaba al grupo en silencio
+ok(/AudioWorkletNode/.test(vozJs) && /capturador/.test(vozJs), 'el micro se captura con un AudioWorklet');
+ok(/type: 'voz\.audio'/.test(vozJs), 'el audio sale por el WebSocket de la sala');
+ok(/cola\.length > 30/.test(vozJs), 'la recepción controla el estancamiento de la cola');
 ok(/function contextoAudio\(\)/.test(vozJs), 'hay un único contexto de audio compartido');
-ok(/ctx\.destination/.test(vozJs), 'el audio remoto se conecta a la salida del contexto');
+ok(/ctx\.destination/.test(vozJs), 'el audio recibido se conecta a la salida del contexto');
 ok(/state !== 'running'\) voz\.ctx\.resume\(\)/.test(vozJs), 'el contexto se desbloquea con cualquier clic');
-ok(/'sin-sonido'/.test(vozJs) && /NotAllowedError/.test(vozJs), 'solo se avisa de bloqueo si el navegador lo dice');
+ok(/vigilarSalida/.test(vozJs), 'hay vigilante del canal de captura (micro que se duerme)');
+ok(/'sin-sonido'/.test(vozJs), 'se avisa cuando el navegador no puede sonar');
+
+// y el servidor reparte el audio de la voz al canal
+const pluginsJs = await readFile(path.join(PUBLIC, '..', 'server', 'plugins.js'), 'utf8');
+ok(/type === 'voz\.audio'/.test(pluginsJs), 'el servidor reenvía el audio a los del canal');
+ok(!/voz\.senales/.test(pluginsJs), 'el servidor ya no hace de señalización WebRTC');
 
 console.log(fallos === 0 ? '\nTodas las pruebas pasaron ✓' : `\n${fallos} pruebas fallidas`);
 setTimeout(() => process.exit(fallos ? 1 : 0), 100);

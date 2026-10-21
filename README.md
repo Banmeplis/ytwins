@@ -98,7 +98,7 @@ Sin resultados o caído YouTube → la app lo avisa y puedes pegar el enlace a m
 | **Encuestas** | Pregunta + opciones, votos en vivo con barras, el voto propio solo lo ve quien vota | `poll.create`, `poll.vote`, `poll.close` |
 | **Notas compartidas** | Bloc de texto que ve toda la sala (edita quien controla) | `notes.set` |
 | **Reacciones** | Emojis que vuelan sobre el vídeo (anti-spam 700 ms) | `reaction` |
-| **Voz** | Micrófono en tiempo real con WebRTC (malla P2P) | `voz.join`, `voz.leave`, `voz.mute`, `voz.habla`, `voz.senales` |
+| **Voz** | Micrófono en tiempo real reenviado por el servidor (el mismo WebSocket) | `voz.join`, `voz.leave`, `voz.mute`, `voz.habla`, `voz.audio` |
 | **IA de sala** | Resume la conversación, sugiere el siguiente vídeo y bautiza la sala (necesita clave de API) | `ia.resumir`, `ia.sugerir`, `ia.nombre` |
 
 ### Activar la IA (opcional)
@@ -124,9 +124,17 @@ falla o agota el tiempo, la sala sigue funcionando y solo se avisa.
 
 El botón **🎙️ Voz** de la barra superior abre un canal de audio para la sala:
 
-- **WebRTC en malla**: cada persona manda su audio directamente a las demás.
-  El servidor no transporta sonido, solo reenvía la *señalización* (ofertas,
-  respuestas y candidatos ICE) que ya viaja por el WebSocket de la sala.
+- **La voz viaja por el servidor, por el mismo WebSocket de la sala**: el
+  micrófono se captura con un `AudioWorklet`, se baja a mono 16 kHz y se manda
+  en trozos de ~90 ms; el servidor reenvía esos trozos a los demás del canal y
+  cada uno lo reproduce con Web Audio local.
+- Antes esto era WebRTC (malla P2P, ICE, TURN). Se quitó porque dependía de
+  permisos de red que el navegador puede negar, del autoplay del tráfico de
+  audio y de que la red permita conexiones entre iguales: ahí dentro el grupo
+  se quedaba en silencio sin explicación. Ahora no hay nada que negociar:
+  **el mismo cable por el que va el chat**.
+- Latencia de unos 200-250 ms (lo que tardan los trozos en llegar y en
+  programarse) y ~32 kB/s por persona que habla.
 - Un clic en **🎙️ Voz** entra al canal (el navegador pide permiso de micrófono).
   Con el micro ya abierto: un clic **silencia/ reactiva**, y **Shift+clic**
   sale del canal del todo.
@@ -134,8 +142,8 @@ El botón **🎙️ Voz** de la barra superior abre un canal de audio para la sa
   **se ilumina en verde mientras habla** (detección de volumen con Web Audio).
 - Se activa con eco cancelación y supresión de ruido, para que no se pisen
   entre sí al hablar.
-- Al quien entra es a quien le toca crear las conexiones, así nunca hay dos
-  ofertas cruzadas ni se lían las manos. Si el servidor se reinicia, los que
+- Quien entra al canal lo hace por el mismo cable que el chat, así que no hay
+  ofertas cruzadas ni manos cruzadas. Si el servidor se reinicia, los que
   estaban en el canal vuelven a entrar solos.
 - Cerrar la pestaña o salir de la sala apaga el micrófono y cierra las conexiones.
 - Detecta quién está hablando con el nivel de audio y **centra la voz**: el que
@@ -155,28 +163,22 @@ El botón **🎙️ Voz** de la barra superior abre un canal de audio para la sa
 
 Detalles honestos:
 
-- Al ser una malla, cada persona manda N copias de su voz (N = gente en el
-  canal). Se nota a partir de ~6-7 personas; el canal avisa al llegar a 12.
-- Solo se usan servidores **STUN** públicos por defecto. En redes muy
-  restrictivas, o cuando los dos equipos están en la misma wifi (Chrome
-  esconde las IP locales tras nombres `mDNS` que a veces no se resuelven),
-  hace falta un servidor **TURN**. Se añade desde el servidor sin tocar código:
-
-  ```
-  TURN_URLS = [{"urls":"turn:mi-servidor:3478","username":"user","credential":"clave"}]
-  ```
-
-  (Render/Cloudflare tienen relays de pago; los gratuitos existen pero son de
-  prueba y no dan garantía.)
+- Al pasar todo por el servidor, el audio consume ancho de banda del servidor
+  (unos 32 kB/s por persona que habla, replicados a cada oyente). Con un grupo
+  pequeño es peanuts; con mucha gente conviene un servidor de voz dedicado.
+- **Ya no hacen falta servidores TURN** (antes sí: la voz era WebRTC). El
+  único requisito es que el navegador permita el micrófono, que en móvil
+  pide HTTPS.
 - **Diagnóstico**: en ⚙️ Opciones de micrófono está el botón 🩺 *Diagnosticar el
-  audio*. Dice si hay HTTPS, si el micro envía señal, cuántas conexiones hay y
-  en qué estado está cada una. Es lo primero que hay que mirar si "no se oye".
-- **Por qué no aparece el aviso de sonido**: el audio remoto no usa elementos
-  `<audio>` (que el navegador puede bloquear por autoplay), sino **un único
-  `AudioContext` de WebAudio** que se desbloquea con el clic de 🎙️. Cada
-  persona que entra se conecta a ese contexto, así que suena sin pedir nada.
-  Si el contexto no estuviera disponible se cae al `<audio>` y ahí sí puede
-  salir el aviso 🔇 con su botón.
+  audio*. Dice si hay HTTPS, si el micro captura señal, **cuánto está saliendo
+  de verdad a los demás** y qué participantes están sonando. Es lo primero que
+  hay que mirar si "no se oye".
+- **Por qué no sale el aviso 🔇 "el navegador no me deja reproducir"**: el
+  audio remoto no usa elementos `<audio>` (que el navegador puede bloquear por
+  autoplay), sino **un único `AudioContext` de WebAudio** que se desbloquea con
+  el clic de 🎙️. Cada persona que entra se conecta a ese contexto, así que
+  suena sin pedir nada. Ese aviso solo aparece si el navegador no da
+  WebAudio en absoluto, y su botón reintenta unlocking.
 - Necesitas HTTPS (o `localhost`) para que el navegador dé el micrófono.
 
 ### Añadir un plugin propio
@@ -358,7 +360,7 @@ ytwins/
 │  ├─ styles.css
 │  ├─ app.js          cliente, sincronización, buscador, plugins, calidad
 │  ├─ player.js       reproductor multi-fuente (YouTube/Vimeo/Dailymotion/directo)
-│  └─ voz.js          chat de voz WebRTC (señalización + malla de audio)
+│  └─ voz.js          voz por el servidor: captura (AudioWorklet) + envío y recepción por el WebSocket
 ├─ render.yaml        despliegue gratis en Render (Blueprint)
 └─ test/
    ├─ protocolo.mjs        45 pruebas del protocolo de sala
@@ -376,7 +378,7 @@ ytwins/
 | `playback` (`play`/`pause`/`seek`) | `reaccion` (evento efímero) |
 | `role.set`, `kick`, `policy`, `skip.vote` | `plugin` (`miVoto`, privado) |
 | `plugin.toggle`, `poll.*`, `notes.set`, `reaction` | `voz.lista`, `voz.habla` (eventos efímeros) |
-| `voz.join/leave/mute/habla/senales` | `voz.senales` (señalización reenviada) |
+| `voz.join/leave/mute/habla/audio` | `voz.lista`, `voz.habla`, `voz.audio` (audio reenviado) |
 | `ia.resumir`, `ia.sugerir`, `ia.nombre` | `ia` (respuesta de la IA para todos) |
 
 Endpoints: `GET /api/search?q=…`, `GET /api/health`.
@@ -385,9 +387,9 @@ Endpoints: `GET /api/search?q=…`, `GET /api/health`.
 
 - Las salas sobreviven al reinicio (archivo o PostgreSQL), pero **el canal de
   voz no**: al reiniciar el servidor hay que volver a pulsar 🎙️.
-- La voz es una malla WebRTC: se nota a partir de ~6-7 personas en el canal y
-  en redes muy restrictivas haría falta un servidor TURN (no disponible en el
-  alojamiento gratuito).
+- La voz pasa por el servidor: aguanta redes restrictivas (no hace falta TURN)
+  pero consume ancho de banda del servidor (~32 kB/s por persona que habla).
+  Con mucha gente en el canal, lo ideal sería un servidor de voz dedicado.
 - Dailymotion depende de su iframe: sin API de comandos, el anfitrión no puede
   pausar en caliente para el grupo sin recargar el iframe (funciona, pero con ~1 s de latencia).
 - El buscador lee la página pública de YouTube; si YouTube cambia el HTML o

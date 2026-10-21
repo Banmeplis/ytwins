@@ -195,14 +195,22 @@ const voz = {
       return true;
     }
 
-    if (msg.type === 'voz.senales') {
-      // señalización WebRTC (offer/answer/candidatos ICE) reenviada al destinatario
-      const destino = room.users.get(String(msg.para || ''));
-      if (!destino || !room.voz.has(user.id)) return true;
-      const carga = {};
-      if (msg.sdp) carga.sdp = msg.sdp;
-      if (msg.ice) carga.ice = msg.ice;
-      enviar(destino.ws, { type: 'voz.senales', de: user.id, ...carga });
+    if (msg.type === 'voz.audio') {
+      // audio del micrófono por el mismo WebSocket: el servidor solo reenvía
+      if (!room.voz.has(user.id)) return true;
+      const v = room.voz.get(user.id);
+      const ahora = Date.now();
+      if (!v.ritmo || ahora - v.ritmo.t >= 1000 || !v.ritmo) v.ritmo = { t: ahora, n: 0 };
+      v.ritmo.n++;
+      // 40 marcos/seg es de sobra (nosotros mandamos ~9/s); evita abusos
+      if (v.ritmo.n > 40) return true;
+      if (typeof msg.datos !== 'string' || !msg.datos || msg.datos.length > 8000) return true;
+      const salida = { type: 'voz.audio', de: user.id, seq: msg.seq, datos: msg.datos };
+      for (const id of room.voz.keys()) {
+        if (id === user.id) continue;
+        const otro = room.users.get(id);
+        if (otro) enviar(otro.ws, salida);
+      }
       return true;
     }
 
@@ -334,7 +342,7 @@ export const TIPOS_PLUGIN = {
   'voz.leave': 'voz',
   'voz.mute': 'voz',
   'voz.habla': 'voz',
-  'voz.senales': 'voz',
+  'voz.audio': 'voz',
   'ia.resumir': 'ia',
   'ia.sugerir': 'ia',
   'ia.nombre': 'ia',
