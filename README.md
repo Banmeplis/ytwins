@@ -43,7 +43,12 @@ npm run test:persistencia  # 33 pruebas de guardado/carga de salas
 4. El anfitrión controla reproducción y cola; puede **Dar control**, cambiar los
    permisos (**Solo anfitrión** / **Todos**) o expulsar.
 5. Cualquiera puede chatear, añadir a la cola, reaccionar y votar **✋ Saltar**.
-6. Las **encuestas**, las **notas compartidas** y los interruptores de plugins
+6. **La cola avanza sola** cuando un vídeo se acaba: el cliente avisa del final y
+   el servidor comprueba la duración, así que la sala pasa al siguiente aunque
+   la pestaña de quien controlaba esté en segundo plano (el navegador no
+   dispara el evento de fin en segundo plano y antes la cola se quedaba
+   parada con el grupo en silencio).
+7. Las **encuestas**, las **notas compartidas** y los interruptores de plugins
    viven en el desplegable **✨ Extras** de la barra lateral (el chat queda
    siempre a la vista). Extras se abre solo cuando alguien abre una encuesta.
 

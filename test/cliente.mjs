@@ -112,5 +112,16 @@ const pluginsJs = await readFile(path.join(PUBLIC, '..', 'server', 'plugins.js')
 ok(/type === 'voz\.audio'/.test(pluginsJs), 'el servidor reenvía el audio a los del canal');
 ok(!/voz\.senales/.test(pluginsJs), 'el servidor ya no hace de señalización WebRTC');
 
+// la cola tiene que avanzar sola: si el final solo lo avisa quien controla,
+// con esa pestaña en segundo plano el grupo se queda en silencio
+ok(/type: 'playback\.ended'/.test(app), 'el cliente avisa de que el vídeo acabó');
+ok(!/terminar:[\s\S]{0,160}queue\.next/.test(app), 'al acabar no se mandan dos mensajes (se saltaría una canción)');
+ok(/playback\.duracion/.test(app), 'el cliente informa de la duración real del vídeo');
+ok(/duracionSegundos/.test(app), 'la duración del buscador se convierte a segundos');
+const serverJs = await readFile(path.join(PUBLIC, '..', 'server', 'index.js'), 'utf8');
+ok(/case 'playback\.ended'/.test(serverJs), 'el servidor acepta el aviso de fin de vídeo');
+ok(/case 'playback\.duracion'/.test(serverJs), 'el servidor guarda la duración real');
+ok(/posicionActual\(room\) >= pb\.duration|posicionActual\(room\) < pb\.duration/.test(serverJs), 'el servidor comprueba el final del vídeo por su cuenta');
+
 console.log(fallos === 0 ? '\nTodas las pruebas pasaron ✓' : `\n${fallos} pruebas fallidas`);
 setTimeout(() => process.exit(fallos ? 1 : 0), 100);

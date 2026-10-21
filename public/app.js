@@ -43,6 +43,14 @@ const mmss = (s) => {
   return `${m}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
 };
 
+/** "3:45" o "1:02:03" → segundos (0 si no se entiende). */
+const duracionSegundos = (texto) => {
+  if (typeof texto === 'number' && isFinite(texto)) return Math.round(texto);
+  const partes = String(texto || '').split(':').map((n) => parseInt(n, 10));
+  if (!partes.length || partes.some((n) => !isFinite(n))) return 0;
+  return partes.reduce((acc, n) => acc * 60 + n, 0);
+};
+
 const conectado = () => ws && ws.readyState === WebSocket.OPEN;
 const enviar = (obj) => conectado() && ws.send(JSON.stringify(obj));
 
@@ -205,14 +213,30 @@ function asegurarReproductor(fuente) {
   repFuente = fuente;
   rep = crearReproductor(fuente, $('#player'), {
     accionLocal: alAccionLocal,
-    terminar: () => { if (puedoControlar()) enviar({ type: 'queue.next' }); },
+    // avisa del final a TODO el mundo: el servidor decide si la cola sigue.
+    // Antes solo avanzaba quien controlaba, y si esa pestaña estaba en
+    // segundo plano (el navegador no dispara "ended") el grupo se quedaba
+    // en silencio con la cola parada.
+    // OJO: solo UN mensaje, o el servidor avanzaría dos veces y se saltaría
+    // una canción de la cola.
+    terminar: () => enviar({ type: 'playback.ended' }),
     buffer: (activo) => {
       if (activo) {
         buffersRecientes = Math.min(3, buffersRecientes + 1);
         aplicarCalidad();
       }
     },
-    listo: () => aplicarEstado(),
+    listo: () => {
+      // el reproductor sabe la duración real (YouTube no la da por API):
+      // se la decimos al servidor para que pueda avanzar la cola solo
+      try {
+        const d = rep && rep.duracion ? rep.duracion() : 0;
+        if (d > 0 && Math.abs((estado?.playback?.duration || 0) - d) > 1) {
+          enviar({ type: 'playback.duracion', duration: d });
+        }
+      } catch {}
+      aplicarEstado();
+    },
     fallo: (mensaje) => toast(mensaje, true),
   });
   return rep;
@@ -1006,14 +1030,17 @@ function renderResultados() {
     add.className = 'btn';
     add.textContent = '+ Cola';
     add.title = 'Añadir a la cola';
-    add.onclick = () => { enviar({ type: 'queue.add', videoId: r.url, title: r.title }); toast('Añadido a la cola'); };
+    // mandamos también duración y miniatura: el servidor las usa para saber
+    // cuánto dura el vídeo y poder pasar solo al siguiente de la cola
+    const datos = { videoId: r.url, title: r.title, duration: duracionSegundos(r.duration), thumbnail: r.thumbnail };
+    add.onclick = () => { enviar({ type: 'queue.add', ...datos }); toast('Añadido a la cola'); };
     botones.append(add);
     if (controla) {
       const ya = document.createElement('button');
       ya.className = 'btn primario';
       ya.textContent = '▶ Ver';
       ya.title = 'Reproducirlo ahora en la sala';
-      ya.onclick = () => enviar({ type: 'queue.add', videoId: r.url, title: r.title, playNow: true });
+      ya.onclick = () => enviar({ type: 'queue.add', ...datos, playNow: true });
       botones.prepend(ya);
     }
     li.append(botones);

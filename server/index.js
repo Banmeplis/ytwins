@@ -177,7 +177,19 @@ async function manejar(ws, room, user, msg) {
       }
       const repetido = room.queue.some((q) => q.ref === meta.ref) || room.playback.ref === meta.ref;
       if (repetido) return enviar(ws, { type: 'error', message: 'Ese vídeo ya está en la sala.' });
-      const item = { id: randomUUID(), ...meta, title: meta.title.slice(0, MAX_TITULO), addedBy: user.name, votes: new Set() };
+      // lo que el cliente ya sabe (el buscador trae duración y miniatura) vale
+      // más que lo que devuelve la API: con la duración el servidor puede
+      // avanzar la cola solo, sin depender de ningún navegador
+      const item = {
+        id: randomUUID(),
+        ...meta,
+        title: String(msg.title || meta.title || '').slice(0, MAX_TITULO),
+        canal: msg.canal || meta.canal || null,
+        thumbnail: msg.thumbnail || meta.thumbnail || null,
+        duration: Number(msg.duration) || meta.duration || null,
+        addedBy: user.name,
+        votes: new Set(),
+      };
       if (msg.playNow && controla) {
         reproducir(room, item);
       } else {
@@ -208,6 +220,38 @@ async function manejar(ws, room, user, msg) {
     case 'queue.next': {
       if (!controla) return enviar(ws, { type: 'error', message: 'Solo quien controla puede pasar al siguiente.' });
       pasarSiguiente(room);
+      emitir(room);
+      return;
+    }
+
+    case 'playback.ended': {
+      // avisa CUALQUIER cliente de que el vídeo se acabó (no solo quien
+      // controla): antes solo avanzaba la cola el navegador que controlaba y
+      // si esa pestaña estaba en segundo plano el grupo se quedaba en
+      // silencio con la cola parada. Ahora lo decide el servidor.
+      const dur = Number(room.playback.duration) || 0;
+      const pos = posicionActual(room);
+      const alFinal = !dur || pos >= dur - 5; // si no se la duración, nos fiamos
+      if (!alFinal) return;
+      if (room.queue.length) {
+        pasarSiguiente(room);
+      } else {
+        room.playback.position = dur || pos;
+        room.playback.playing = false;
+        room.playback.updatedAt = Date.now();
+      }
+      emitir(room);
+      return;
+    }
+
+    case 'playback.duracion': {
+      // el reproductor sabe la duración real del vídeo (YouTube no la da por
+      // API): con ella el servidor puede avanzar la cola solo
+      const dur = Number(msg.duration) || 0;
+      if (!controla || !dur || !room.playback.ref) return;
+      if (Math.abs((room.playback.duration || 0) - dur) < 1) return;
+      room.playback.duration = dur;
+      room.playback.updatedAt = Date.now();
       emitir(room);
       return;
     }
@@ -481,6 +525,27 @@ setInterval(() => {
     if (room.users.size === 0 && ahora - room.lastSeen > SALA_VACIA_TTL_MS) rooms.delete(codigo);
   }
 }, INTERVALO_SYNC_MS);
+
+// La cola avanza sola cuando el vídeo llega a su final: así no depende de que
+// algún navegador dispare el evento "ended" (una pestaña en segundo plano no
+// lo dispara y el grupo se quedaba en silencio con la cola parada).
+setInterval(() => {
+  const ahora = Date.now();
+  for (const room of rooms.values()) {
+    const pb = room.playback;
+    if (!pb.ref || !pb.playing || !pb.duration) continue;
+    if (posicionActual(room) < pb.duration - 0.3) continue;
+    if (room.queue.length) {
+      pasarSiguiente(room);
+      emitir(room);
+    } else {
+      pb.position = pb.duration;
+      pb.playing = false;
+      pb.updatedAt = ahora;
+      emitir(room);
+    }
+  }
+}, 1000);
 
 // una vez por hora: borra de la base las salas vacías abandonadas
 setInterval(() => { limpiar().catch(() => {}); }, 3600 * 1000).unref?.();
