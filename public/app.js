@@ -1439,12 +1439,10 @@ window.YTwinsVoz?.iniciarVoz({
       toast(`No se pudo conectar la voz con ${nombre}: casi siempre es la red (prueba con datos móviles u otro wifi).`, true);
     } else if (aviso === 'ok') {
       conexionesVoz.delete(userId);
-      $('#aviso-audio').hidden = true;
     } else if (aviso === 'sin-sonido') {
-      // solo si el navegador NO tiene WebAudio: no hay más que se pueda
-      // hacer con un botón, así que se avisa una vez y se deja el cartel
-      $('#aviso-audio').hidden = false;
-      toast('Este navegador no puede reproducir el audio de los demás.', true);
+      // sin cartel en el chat: con la voz por servidor no hay nada que
+      // "activar" a mano, así que solo se avisa un momento y se sigue
+      toast('El audio de los demás no se reproduce en este navegador.', true);
     } else if (aviso === 'sin-flujo') {
       toast('No me llega audio de ' + nombre + ': puede ser la red.', true);
     }
@@ -1454,10 +1452,6 @@ window.YTwinsVoz?.iniciarVoz({
 
 // el audio remoto colgado puede quedarse en pausa: cualquier clic lo destrancan
 document.addEventListener('click', () => window.YTwinsVoz?.reintentarAudio(), true);
-$('#btn-activar-audio').onclick = () => {
-  window.YTwinsVoz?.reintentarAudio();
-  setTimeout(() => { if (!window.YTwinsVoz?.bloqueado?.()) $('#aviso-audio').hidden = true; }, 400);
-};
 
 // diagnóstico del audio
 $('#btn-diagnostico').onclick = async () => {

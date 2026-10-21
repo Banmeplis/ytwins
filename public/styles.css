@@ -373,10 +373,6 @@ details.extras summary:hover{color:var(--txt)}
   margin:10px 0 0;font:13px/1.5 inherit;color:#dbe6ff;white-space:pre-wrap;max-height:220px;overflow:auto}
 .ia-estado{margin:8px 0 0;font-size:12px;color:var(--dim)}
 .boton-diag{width:100%;margin-top:4px;font-size:12.5px;padding:9px}
-.aviso-audio{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin:8px 0 0;padding:10px 12px;
-  border-radius:11px;background:rgba(255,61,90,.12);border:1px solid rgba(255,61,90,.4);
-  color:#ffb3c0;font-size:12.5px}
-.aviso-audio .btn{padding:7px 11px;font-size:12px}
 
 /* ------------------------------ voz (micrófono) -------------------------- */
 .opciones-voz{margin-top:10px;border:1px solid var(--line);border-radius:10px;background:var(--panel2)}

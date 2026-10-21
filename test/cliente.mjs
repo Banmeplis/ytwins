@@ -145,11 +145,13 @@ ok(/Crear una sala privada/.test(indexHtml), 'el lobby ofrece crear una sala pri
 // "no me deja reproducir" cuando el código ya estaba arreglado)
 ok(/huellaCliente/.test(serverJs) && /\?v=/.test(serverJs), 'el servidor versiona el JS y el CSS del cliente');
 
-// el aviso de sonido solo puede salir si el navegador NO tiene WebAudio:
-// con la voz por servidor no hay nada que "activar" y el aviso era ruido
-ok(/aviso-audio/.test(indexHtml) && !/no me deja reproducir/.test(indexHtml), 'el aviso de sonido ya no dice que el navegador bloquee el audio');
+// el aviso de sonido se eliminó del chat: con la voz por servidor no hay
+// nada que "activar" a mano y el cartel era ruido (o un código fantasma)
+ok(!/aviso-audio/.test(indexHtml), 'ya no existe el cartel de sonido en el chat');
+ok(!/aviso-audio/.test(app), 'app.js no lo referencia (no puede petar al no existir)');
+ok(!/btn-activar-audio/.test(indexHtml) && !/btn-activar-audio/.test(app), 'el botón de activar sonido también desaparece');
 ok(/VERSION_CLIENTE/.test(app) && /version-cliente/.test(indexHtml), 'se muestra la versión del cliente (para saber si el navegador tiene el código viejo)');
-ok(/sin-sonido[\s\S]{0,200}toast\(/.test(app), 'el aviso real de audio se avisa con un toast, no con un cartel perpetuo');
+ok(/sin-sonido[\s\S]{0,200}toast\(/.test(app), 'si hay un problema de audio, se avisa con un toast y ya');
 
 console.log(fallos === 0 ? '\nTodas las pruebas pasaron ✓' : `\n${fallos} pruebas fallidas`);
 setTimeout(() => process.exit(fallos ? 1 : 0), 100);
