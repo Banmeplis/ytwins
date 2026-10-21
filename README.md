@@ -36,7 +36,9 @@ npm run test:persistencia  # 33 pruebas de guardado/carga de salas
 
 ## Cómo se usa
 
-1. Escribe tu nombre y pulsa **Crear sala** → obtienes un código de 6 letras.
+1. Escribe tu nombre y entra en una de las **cuatro salas públicas** (con un
+   clic, sin código: están siempre abiertas) o **crea una sala privada** y
+   comparte su código de 6 letras.
 2. Comparte el código (el botón lo copia). Tus amigos pulsan **Unirse**.
 3. **🔍 Busca vídeos dentro de la app** (sin claves de API) o pega un enlace en
    la pestaña **Cola**. Pulsa **▶ Ver** para reproducir ya o **+ Cola**.

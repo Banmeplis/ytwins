@@ -199,6 +199,7 @@ function cerrar() {
   if (ws) { ws.onclose = null; try { ws.close(); } catch {} ws = null; }
   $('#vista-sala').classList.remove('activa');
   $('#vista-lobby').classList.add('activa');
+  pintarPublicas(); // al volver al lobby, las salas públicas al día
 }
 
 const errorLobby = (txt) => {
@@ -1132,6 +1133,56 @@ $('#btn-unirse').onclick = () => {
   $('#lobby-error').hidden = true;
   conectar({ code, name: nombre });
 };
+
+/* ------------------------- salas públicas (4 fijas) --------------------- */
+
+let refrescoPublicas = null;
+
+/** Pinta las cuatro salas públicas con su estado (gente y qué suena). */
+async function pintarPublicas() {
+  const cont = $('#lista-publicas');
+  if (!cont) return;
+  try {
+    const r = await fetch('/api/salas/publicas', { cache: 'no-store' });
+    const d = await r.json();
+    if (!d?.salas?.length) throw new Error('sin datos');
+    cont.innerHTML = '';
+    for (const s of d.salas) {
+      const btn = document.createElement('button');
+      btn.className = 'pub-sala';
+      btn.type = 'button';
+      const gente = s.personas === 1 ? '1 persona' : `${s.personas} personas`;
+      btn.innerHTML = `
+        <span class="pub-nombre">${s.nombre}</span>
+        <span class="pub-gente">${s.personas ? '👥 ' : ''}${gente}</span>
+        <span class="pub-que">${s.reproduciendo ? '▶ ' + s.reproduciendo.slice(0, 42) : (s.personas ? 'Sin vídeo' : 'Libre')}</span>
+        <span class="pub-entrar">Entrar →</span>`;
+      btn.onclick = () => entrarPublica(s.codigo);
+      cont.appendChild(btn);
+    }
+  } catch {
+    cont.innerHTML = '<div class="pub-vacia">No se pudieron cargar las salas públicas (¿sin conexión?).</div>';
+  }
+}
+
+/** Entra en una sala pública con tu nombre: sin códigos ni complicatejos. */
+function entrarPublica(codigo) {
+  const nombre = $('#in-nombre').value.trim();
+  if (!nombre) return errorLobby('Escribe tu nombre primero.');
+  $('#lobby-error').hidden = true;
+  conectar({ code: codigo, name: nombre });
+}
+
+// se refresca mientras estemos en el lobby
+function arrancarPublicas() {
+  pintarPublicas();
+  clearInterval(refrescoPublicas);
+  refrescoPublicas = setInterval(() => {
+    if (!$('#vista-lobby')?.classList.contains('activa')) return;
+    pintarPublicas();
+  }, 5000);
+}
+arrancarPublicas();
 
 $('#in-codigo').addEventListener('keydown', (e) => { if (e.key === 'Enter') $('#btn-unirse').click(); });
 $('#in-nombre').addEventListener('keydown', (e) => { if (e.key === 'Enter') $('#btn-unirse').click(); });

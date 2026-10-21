@@ -39,7 +39,22 @@ h1,h2{margin:0}
 .bento{display:grid;gap:14px;width:min(1080px,100%);margin:auto;grid-auto-flow:dense;
   grid-template-columns:repeat(auto-fit,minmax(min(100%,290px),1fr))}
 .t-cab{grid-column:1/-1}                                     /* la cabecera a todo lo ancho */
+.t-publicas{grid-column:1/-1}                               /* las salas públicas a todo lo ancho */
 .t-error,.t-pie{grid-column:1/-1}                            /* avisos y pie a todo lo ancho */
+
+/* ------------------------- salas públicas del lobby --------------------- */
+.sub-publicas{color:var(--dim);font-size:13px;margin:0 0 2px}
+.lista-publicas{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,205px),1fr));gap:10px}
+.pub-sala{display:flex;flex-direction:column;gap:3px;text-align:left;padding:12px 14px;border-radius:14px;
+  background:var(--panel2);border:1px solid var(--line);cursor:pointer;min-height:44px;
+  transition:transform .16s cubic-bezier(.2,.7,.3,1),border-color .16s,background .16s}
+.pub-sala:hover{transform:translateY(-2px);border-color:var(--line-viva);background:rgba(255,255,255,.07)}
+.pub-sala:active{transform:translateY(0)}
+.pub-nombre{font-weight:700;font-size:15px;color:var(--txt)}
+.pub-gente{font-size:12px;color:var(--dim)}
+.pub-que{font-size:12px;color:var(--acento2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pub-entrar{font-size:12.5px;color:var(--txt);font-weight:600;margin-top:3px}
+.pub-vacia{font-size:13px;color:var(--dim)}
 
 .bento-cab{text-align:center;padding:6px 0 2px}
 .bento-cab h1{font-size:46px;letter-spacing:-.6px;font-weight:800;margin:0}

@@ -119,6 +119,7 @@ ok(!/terminar:[\s\S]{0,160}queue\.next/.test(app), 'al acabar no se mandan dos m
 ok(/playback\.duracion/.test(app), 'el cliente informa de la duración real del vídeo');
 ok(/duracionSegundos/.test(app), 'la duración del buscador se convierte a segundos');
 const serverJs = await readFile(path.join(PUBLIC, '..', 'server', 'index.js'), 'utf8');
+const indexHtml = await readFile(path.join(PUBLIC, 'index.html'), 'utf8');
 ok(/case 'playback\.ended'/.test(serverJs), 'el servidor acepta el aviso de fin de vídeo');
 ok(/case 'playback\.duracion'/.test(serverJs), 'el servidor guarda la duración real');
 ok(/posicionActual\(room\) >= pb\.duration|posicionActual\(room\) < pb\.duration/.test(serverJs), 'el servidor comprueba el final del vídeo por su cuenta');
@@ -131,6 +132,18 @@ ok(/t\.stop\(\)/.test(vozJs), 'las pistas del micro se detienen (el navegador de
 ok(/salirVoz\(\)/.test(app), 'al cerrar la sala se apaga el micro');
 ok(/ws\.onclose[\s\S]{0,600}salirVoz\(\)/.test(app), 'si se cae la conexión, el micro se apaga');
 ok(/!vozPluginActivo\(\)[\s\S]{0,400}salirVoz\(\)/.test(app), 'si el anfitrión desactiva la voz, el micro se apaga');
+
+// las cuatro salas públicas: se entra con el nombre, sin código, y las
+// privadas se siguen creando con su código de 6 letras
+ok(/lista-publicas/.test(indexHtml) && /pub-sala/.test(app), 'el lobby tiene las tarjetas de salas públicas');
+ok(/entrarPublica/.test(app) && /api\/salas\/publicas/.test(app), 'el cliente entra en las salas públicas con un clic');
+ok(/SALA_PUBLICAS|publicas/.test(serverJs) && /api\/salas\/publicas/.test(serverJs), 'el servidor expone las salas públicas y su API');
+ok(/Crear una sala privada/.test(indexHtml), 'el lobby ofrece crear una sala privada');
+
+// el versionado automático de los archivos del cliente: sin esto el
+// navegador se queda con un JS viejo y aparecen avisos fantasma (como el
+// "no me deja reproducir" cuando el código ya estaba arreglado)
+ok(/huellaCliente/.test(serverJs) && /\?v=/.test(serverJs), 'el servidor versiona el JS y el CSS del cliente');
 
 console.log(fallos === 0 ? '\nTodas las pruebas pasaron ✓' : `\n${fallos} pruebas fallidas`);
 setTimeout(() => process.exit(fallos ? 1 : 0), 100);

@@ -30,6 +30,16 @@ const MAX_TITULO = 140;
 const CODE_CHARS = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // sin 0/O ni 1/I
 const rooms = new Map(); // código -> room
 
+/* Las cuatro salas públicas: están siempre abiertas y cualquiera entra con su
+ * nombre (sin código). Se crean al vuelo la primera vez que alguien entra. */
+const SALAS_PUBLICAS = [
+  { codigo: 'SALA01', nombre: 'Sala 1' },
+  { codigo: 'SALA02', nombre: 'Sala 2' },
+  { codigo: 'SALA03', nombre: 'Sala 3' },
+  { codigo: 'SALA04', nombre: 'Sala 4' },
+];
+const esPublica = (codigo) => SALAS_PUBLICAS.some((p) => p.codigo === codigo);
+
 /* ---------------------------------------------------------------- helpers */
 
 const nuevoCodigo = () => {
@@ -44,6 +54,28 @@ const nuevoCodigo = () => {
 const esAnfitrion = (room, user) => user.id === room.hostId;
 const puedeControlar = (room, user) =>
   esAnfitrion(room, user) || user.role === 'controller' || room.controlPolicy === 'everyone';
+
+/** Crea una sala (pública o privada) y la deja registrada. */
+function crearSala(codigo, nombre, publica = false) {
+  const room = {
+    code: codigo,
+    name: String(nombre || 'Sala').slice(0, 40) || 'Sala',
+    publica: Boolean(publica),
+    hostId: null,
+    ownerToken: randomUUID(),
+    controlPolicy: 'host',
+    users: new Map(),
+    queue: [],
+    playback: { fuente: null, ref: null, url: null, title: null, thumbnail: null, duration: null, position: 0, playing: false, updatedAt: Date.now() },
+    skipVotes: new Set(),
+    chat: [],
+    createdAt: Date.now(),
+    lastSeen: Date.now(),
+  };
+  inicializarPlugins(room);
+  rooms.set(codigo, room);
+  return room;
+}
 
 function posicionActual(room) {
   const pb = room.playback;
@@ -349,8 +381,47 @@ async function manejar(ws, room, user, msg) {
 
 /* --------------------------------------------------------------- WebSocket */
 
+/** Huella de los archivos del cliente: cambia cuando cambia el JS o el CSS. */
+let huellaCache = { valor: '', cuando: 0 };
+async function huellaCliente() {
+  const ahora = Date.now();
+  if (huellaCache.valor && ahora - huellaCache.cuando < 5000) return huellaCache.valor;
+  try {
+    const partes = [];
+    for (const nombre of ['app.js', 'voz.js', 'player.js', 'styles.css']) {
+      const d = await readFile(path.join(PUBLIC_DIR, nombre));
+      partes.push(`${nombre}:${d.length}`);
+    }
+    // un número corto y estable mientras no cambien los archivos
+    const total = partes.join('|');
+    let h = 0;
+    for (let i = 0; i < total.length; i++) h = (h * 31 + total.charCodeAt(i)) >>> 0;
+    huellaCache = { valor: h.toString(36), cuando: ahora };
+    return huellaCache.valor;
+  } catch {
+    return '0';
+  }
+}
+
 const server = http.createServer(async (req, res) => {
   const url = new URL(req.url, 'http://x');
+
+  if (url.pathname === '/api/salas/publicas') {
+    // las cuatro salas públicas con su estado actual, para las tarjetas del lobby
+    const lista = SALAS_PUBLICAS.map((p) => {
+      const r = rooms.get(p.codigo);
+      return {
+        codigo: p.codigo,
+        nombre: p.nombre,
+        personas: r ? r.users.size : 0,
+        reproduciendo: r?.playback?.title || null,
+        activa: !!(r && r.playback?.playing),
+      };
+    });
+    res.writeHead(200, { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' });
+    res.end(JSON.stringify({ ok: true, salas: lista }));
+    return;
+  }
 
   if (url.pathname === '/api/search') {
     try {
@@ -402,13 +473,23 @@ const server = http.createServer(async (req, res) => {
       '.png': 'image/png',
       '.ico': 'image/x-icon',
     };
+    // VERSIONADO AUTOMÁTICO: al servir el HTML, los scripts y el CSS llevan
+    // la "huella" de los archivos del cliente. Así el navegador nunca se
+    // queda con una versión antigua (era la causa de avisos raros como el
+    // "no me deja reproducir" cuando el código ya estaba arreglado).
+    let cuerpo = data;
+    if (path.extname(file) === '.html') {
+      const huella = await huellaCliente();
+      cuerpo = cuerpo.toString('utf8').replace(/(src|href)="(\/(?:app|voz|player)\.js|\/styles\.css)"/g,
+        (m, attr, ruta) => `${attr}="${ruta}?v=${huella}"`);
+    }
     res.writeHead(200, {
       'content-type': tipos[path.extname(file)] || 'application/octet-stream',
       // el JS del cliente cambia seguido: que el navegador nunca se quede con
       // una versión antigua (ni los usuarios tras un despliegue nuevo)
       'cache-control': 'no-cache',
     });
-    res.end(data);
+    res.end(cuerpo);
   } catch {
     res.writeHead(404, { 'content-type': 'text/plain; charset=utf-8' }).end('404');
   }
@@ -433,6 +514,11 @@ wss.on('connection', (ws) => {
       const codigo = String(msg.code || '').toUpperCase().trim();
       const nombre = String(msg.name || '').trim().slice(0, 24) || 'Invitado';
       room = obtenerSala(codigo);
+      if (!room && esPublica(codigo)) {
+        // las salas públicas se crean al vuelo: siempre están abiertas
+        const def = SALAS_PUBLICAS.find((p) => p.codigo === codigo);
+        room = crearSala(codigo, def?.nombre || codigo, true);
+      }
       if (!room) return enviar(ws, { type: 'error', message: `No existe la sala ${codigo}.`, fatal: true });
 
       user = { id: randomUUID(), name: nombre, ws, role: 'member', joinedAt: Date.now() };
@@ -454,23 +540,8 @@ wss.on('connection', (ws) => {
     if (msg.type === 'create') {
       if (room) return;
       const codigo = nuevoCodigo();
-      const ownerToken = randomUUID();
-      room = {
-        code: codigo,
-        name: String(msg.name || 'Sala').slice(0, 40) || 'Sala',
-        hostId: null,
-        ownerToken,
-        controlPolicy: 'host',
-        users: new Map(),
-        queue: [],
-        playback: { fuente: null, ref: null, url: null, title: null, thumbnail: null, duration: null, position: 0, playing: false, updatedAt: Date.now() },
-        skipVotes: new Set(),
-        chat: [],
-        createdAt: Date.now(),
-        lastSeen: Date.now(),
-      };
-      inicializarPlugins(room);
-      rooms.set(codigo, room);
+      room = crearSala(codigo, String(msg.name || 'Sala').slice(0, 40) || 'Sala', false);
+      const ownerToken = room.ownerToken;
       user = {
         id: randomUUID(),
         name: String(msg.userName || 'Anfitrión').trim().slice(0, 24) || 'Anfitrión',

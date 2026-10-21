@@ -55,6 +55,7 @@ export function serializarSala(room) {
   return {
     code: room.code,
     name: room.name,
+    publica: Boolean(room.publica),
     hostId: room.hostId,
     ownerToken: room.ownerToken,
     controlPolicy: room.controlPolicy,
@@ -123,6 +124,7 @@ export function hidratar(d) {
   const room = {
     code: d.code,
     name: d.name || 'Sala',
+    publica: Boolean(d.publica),
     hostId: d.hostId || null,
     ownerToken: d.ownerToken || null,
     controlPolicy: d.controlPolicy === 'everyone' ? 'everyone' : 'host',

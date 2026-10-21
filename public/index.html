@@ -14,29 +14,37 @@
   <div class="bento">
     <header class="bento-cab t-cab">
       <h1>▶ Y<span>Twins</span></h1>
-      <p class="sub">Crea una sala, comparte el código y mirad sincronizados: el mismo vídeo, en el mismo segundo.</p>
+      <p class="sub">Entra en una de las salas públicas con tu nombre, o crea una privada y comparte el código.</p>
     </header>
-
-    <section class="tarjeta t-crear">
-      <h2>🏠 Crear una sala</h2>
-      <label class="campo">
-        <span>Nombre de la sala</span>
-        <input id="in-nombre-sala" type="text" maxlength="40" placeholder="Cine de terror" autocomplete="off" />
-      </label>
-      <button id="btn-crear" class="btn primario grande">Crear sala</button>
-      <small class="nota">Te sale un código de 6 letras para compartir.</small>
-    </section>
 
     <section class="tarjeta t-nombre">
       <h2>👤 Tu nombre</h2>
       <label class="campo">
         <input id="in-nombre" type="text" maxlength="24" placeholder="p. ej. Ana" autocomplete="off" />
       </label>
-      <small class="nota">Así te verán los demás.</small>
+      <small class="nota">Así te verán los demás. Es lo único que hace falta para entrar en las salas públicas.</small>
+    </section>
+
+    <section class="tarjeta t-publicas">
+      <h2>🌍 Salas públicas</h2>
+      <p class="sub-publicas">Entra con tu nombre, sin código. Hay cuatro siempre abiertas.</p>
+      <div id="lista-publicas" class="lista-publicas">
+        <div class="pub-vacia">Cargando las salas públicas…</div>
+      </div>
+    </section>
+
+    <section class="tarjeta t-crear">
+      <h2>🔒 Crear una sala privada</h2>
+      <label class="campo">
+        <span>Nombre de la sala</span>
+        <input id="in-nombre-sala" type="text" maxlength="40" placeholder="Cine de terror" autocomplete="off" />
+      </label>
+      <button id="btn-crear" class="btn primario grande">Crear sala privada</button>
+      <small class="nota">Te sale un código de 6 letras para compartir con quien quieras.</small>
     </section>
 
     <section class="tarjeta t-unirse">
-      <h2>🔑 Unirse</h2>
+      <h2>🔑 Unirse con código</h2>
       <label class="campo">
         <input id="in-codigo" type="text" maxlength="6" placeholder="ABC123" autocomplete="off"
                style="text-transform:uppercase; letter-spacing:.35em; text-align:center; font-size:18px" />
