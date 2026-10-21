@@ -33,23 +33,13 @@ button,input{font:inherit;color:inherit}
 h1,h2{margin:0}
 
 /* ------------------------------- LOBBY --------------------------------- */
-/* Rejilla bento: tarjetas de tamaños distintos, como un tablero */
-.bento{display:grid;gap:14px;width:min(1080px,100%);margin:auto;
-  grid-template-columns:repeat(3,minmax(0,1fr));
-  grid-template-areas:
-    "cab    cab    cab"
-    "crear  crear  nombre"
-    "crear  crear  unirse"
-    "voz    fuentes fuentes";
-}
-.t-cab{grid-area:cab}
-.t-crear{grid-area:crear}
-.t-nombre{grid-area:nombre}
-.t-unirse{grid-area:unirse}
-.t-voz{grid-area:voz}
-.t-fuentes{grid-area:fuentes}
-.t-error{grid-area:error}
-.t-pie{grid-area:pie}
+/* Rejilla bento sin consultas de medios: auto-fit decide cuántas columnas
+   caben (1 en móvil, 3 en escritorio) y los span colocan las tarjetas, sin
+   depender de que el navegador aplique @media a tiempo */
+.bento{display:grid;gap:14px;width:min(1080px,100%);margin:auto;grid-auto-flow:dense;
+  grid-template-columns:repeat(auto-fit,minmax(min(100%,290px),1fr))}
+.t-cab{grid-column:1/-1}                                     /* la cabecera a todo lo ancho */
+.t-error,.t-pie{grid-column:1/-1}                            /* avisos y pie a todo lo ancho */
 
 .bento-cab{text-align:center;padding:6px 0 2px}
 .bento-cab h1{font-size:46px;letter-spacing:-.6px;font-weight:800;margin:0}
@@ -68,7 +58,12 @@ h1,h2{margin:0}
 .tarjeta code{background:rgba(255,255,255,.08);padding:1px 5px;border-radius:5px;font-size:12.5px}
 .nota{color:#6f7d96;font-size:12px;margin-top:auto}
 
-/* la tarjeta grande: crear sala */
+/* la tarjeta grande: crear sala; en pantallas anchas ocupa un hueco de 2x2
+   como en el bento clasico. OJO: el span va SOLO en pantallas anchas porque
+   en un grid de una sola columna crea una columna fantasma */
+@media (min-width:900px){
+  .t-crear{grid-column:span 2;grid-row:span 2}
+}
 .t-crear{background:linear-gradient(150deg,rgba(255,61,90,.16),rgba(77,163,255,.12) 55%,rgba(160,107,255,.14));
   border-color:rgba(255,120,150,.28);padding:24px}
 .t-crear::after{content:'';position:absolute;right:-70px;top:-90px;width:220px;height:220px;border-radius:50%;
@@ -82,22 +77,14 @@ h1,h2{margin:0}
 .error{padding:12px 14px;border-radius:12px;background:rgba(255,61,90,.12);border:1px solid rgba(255,61,90,.4);color:#ffb3c0;font-size:14px}
 .pie{color:var(--dim);font-size:13px;text-align:center;margin-top:2px}
 
-/* tablet: dos columnas */
+/* tablet y móvil: solo tipografía y aire, la rejilla ya se arregla sola */
 @media (max-width:860px){
-  .bento{grid-template-columns:repeat(2,minmax(0,1fr));
-    grid-template-areas:
-      "cab    cab"
-      "crear  crear"
-      "nombre unirse"
-      "voz    fuentes";
-    padding:0 6px}
+  .bento{padding:0 6px}
   .bento-cab h1{font-size:38px}
 }
-/* móvil: una columna */
 @media (max-width:620px){
-  .bento{grid-template-columns:1fr;
-    grid-template-areas:"cab" "nombre" "crear" "unirse" "voz" "fuentes";
-    padding:0 2px}
+  #vista-lobby.activa{padding:18px 16px}   /* aire de sobra para que nada se pegue al borde */
+  .bento{padding:0}
   .bento-cab h1{font-size:33px}
   .t-crear{padding:20px}
 }
