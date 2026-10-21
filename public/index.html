@@ -63,7 +63,9 @@
     </section>
 
     <p id="lobby-error" class="error t-error" hidden></p>
-    <p class="pie t-pie">Funciona en móvil, PC y TV · Calidad automática según tu conexión</p>
+    <p class="pie t-pie">Funciona en móvil, PC y TV · Calidad automática según tu conexión
+      <span id="version-cliente" class="version" title="Versión del cliente (si el navegador se quedó con una copia antigua, recarga)"></span>
+    </p>
   </div>
 </section>
 
@@ -272,8 +274,12 @@
       </div>
     </details>
 
+    <!-- Aviso del audio: con la voz por servidor el sonido se reproduce con
+         WebAudio (que se desbloquea al pulsar 🎙️), así que este cartel solo
+         sale si de verdad el navegador no puede dar audio. -->
     <p id="aviso-audio" class="aviso-audio" hidden>
-      🔇 El navegador no me deja reproducir a los demás. <button id="btn-activar-audio" class="btn">Activar sonido</button>
+      🔇 Este navegador no puede reproducir el audio de los demás.
+      <button id="btn-activar-audio" class="btn">Reintentar</button>
     </p>
 
     <form id="form-chat" class="fila-chat">

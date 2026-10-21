@@ -28,6 +28,18 @@ const SALTO_SEEK = 5;    // s: un salto local mayor en ~1 s solo puede ser un ge
 const ESCALA = ['small', 'medium', 'large', 'hd720'];
 
 /* ================================ utilidades ============================ */
+
+/* Versión del cliente: el servidor versiona los archivos (?v=huella), así que
+ * esta marca dice si el navegador tiene el código nuevo o una copia vieja. */
+const VERSION_CLIENTE = (() => {
+  try {
+    const src = [...document.querySelectorAll('script[src]')].map((s) => s.src).find((s) => s.includes('/app.js'));
+    return (src && src.match(/[?&]v=([a-z0-9]+)/)?.[1]) || 'dev';
+  } catch {
+    return 'dev';
+  }
+})();
+
 const toast = (txt, err = false) => {
   const t = $('#toast');
   t.textContent = txt;
@@ -213,7 +225,6 @@ function mostrarSala() {
   $('#vista-sala').classList.add('activa');
   $('#sala-codigo').textContent = codigo;
 }
-
 /* ============================ reproductor =============================== */
 function asegurarReproductor(fuente) {
   if (rep && repFuente === fuente) return rep;
@@ -1184,6 +1195,11 @@ function arrancarPublicas() {
 }
 arrancarPublicas();
 
+// la versión del cliente, visible en el pie del lobby: si un móvil se queda
+// con una copia antigua del JS, se nota de un vistazo
+const verVersion = $('#version-cliente');
+if (verVersion) verVersion.textContent = '· v' + VERSION_CLIENTE;
+
 $('#in-codigo').addEventListener('keydown', (e) => { if (e.key === 'Enter') $('#btn-unirse').click(); });
 $('#in-nombre').addEventListener('keydown', (e) => { if (e.key === 'Enter') $('#btn-unirse').click(); });
 
@@ -1425,7 +1441,10 @@ window.YTwinsVoz?.iniciarVoz({
       conexionesVoz.delete(userId);
       $('#aviso-audio').hidden = true;
     } else if (aviso === 'sin-sonido') {
-      $('#aviso-audio').hidden = false; // el navegador no deja reproducir: hace falta un clic
+      // solo si el navegador NO tiene WebAudio: no hay más que se pueda
+      // hacer con un botón, así que se avisa una vez y se deja el cartel
+      $('#aviso-audio').hidden = false;
+      toast('Este navegador no puede reproducir el audio de los demás.', true);
     } else if (aviso === 'sin-flujo') {
       toast('No me llega audio de ' + nombre + ': puede ser la red.', true);
     }
@@ -1446,7 +1465,8 @@ $('#btn-diagnostico').onclick = async () => {
   salida.hidden = false;
   salida.textContent = 'Comprobando…';
   const r = await window.YTwinsVoz.diagnostico();
-  salida.textContent = r.texto;
+  // la versión va la primera: si no coincide, el navegador tiene una copia vieja
+  salida.textContent = `versión del cliente: ${VERSION_CLIENTE}\n` + r.texto;
 };
 
 // Latido: mantiene viva la conexión (y evita que el alojamiento duerma la app
