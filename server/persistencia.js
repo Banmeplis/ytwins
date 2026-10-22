@@ -136,6 +136,7 @@ export function hidratar(d) {
     },
     skipVotes: new Set(),
     chat: [],
+    recientes: new Map(),
     createdAt: d.createdAt || Date.now(),
     lastSeen: d.lastSeen || Date.now(),
   };

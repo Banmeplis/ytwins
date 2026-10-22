@@ -153,5 +153,16 @@ ok(!/btn-activar-audio/.test(indexHtml) && !/btn-activar-audio/.test(app), 'el b
 ok(/VERSION_CLIENTE/.test(app) && /version-cliente/.test(indexHtml), 'se muestra la versión del cliente (para saber si el navegador tiene el código viejo)');
 ok(/sin-sonido[\s\S]{0,200}toast\(/.test(app), 'si hay un problema de audio, se avisa con un toast y ya');
 
+// el volumen de cada persona se ajusta solo en tu navegador
+ok(/setVolumen/.test(vozJs) && /volumenes/.test(vozJs), 'voz.js guarda un volumen por persona');
+ok(/controlVolumen/.test(app) && /vol-rango/.test(app), 'la lista de personas trae su control de volumen');
+ok(/yr-volumenes/.test(app), 'el volumen de cada persona se recuerda entre sesiones');
+
+// al reentrar, la misma persona no puede aparecer duplicada
+ok(/CLIENTE_ID/.test(app) && /clientId/.test(app), 'el cliente manda un identificador de navegador');
+ok(/clientId/.test(serverJs) && /recientes/.test(serverJs), 'el servidor reconoce a la misma persona y no la duplica');
+ok(/estaVivo/.test(serverJs) && /u\.ip === ip/.test(serverJs), 'los fantasmas con la misma IP se limpian si su conexión está muerta');
+ok(/controlPolicy: 'everyone'/.test(serverJs), 'por defecto controlan todos los de la sala');
+
 console.log(fallos === 0 ? '\nTodas las pruebas pasaron ✓' : `\n${fallos} pruebas fallidas`);
 setTimeout(() => process.exit(fallos ? 1 : 0), 100);

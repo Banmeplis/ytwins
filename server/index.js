@@ -63,12 +63,15 @@ function crearSala(codigo, nombre, publica = false) {
     publica: Boolean(publica),
     hostId: null,
     ownerToken: randomUUID(),
-    controlPolicy: 'host',
+    // por defecto controlan TODOS: la sala es de todos. El anfitrión puede
+    // cambiarlo a "solo anfitrión" cuando quiera desde el panel de control.
+    controlPolicy: 'everyone',
     users: new Map(),
     queue: [],
     playback: { fuente: null, ref: null, url: null, title: null, thumbnail: null, duration: null, position: 0, playing: false, updatedAt: Date.now() },
     skipVotes: new Set(),
     chat: [],
+    recientes: new Map(), // quien acaba de salir: si vuelve, recupera su sitio
     createdAt: Date.now(),
     lastSeen: Date.now(),
   };
@@ -222,7 +225,8 @@ async function manejar(ws, room, user, msg) {
         addedBy: user.name,
         votes: new Set(),
       };
-      if (msg.playNow && controla) {
+      if (msg.playNow) {
+        // cualquiera puede poner un vídeo a sonar: la sala es de todos
         reproducir(room, item);
       } else {
         room.queue.push(item);
@@ -497,9 +501,18 @@ const server = http.createServer(async (req, res) => {
 
 const wss = new WebSocketServer({ server });
 
-wss.on('connection', (ws) => {
+/** La IP de quien conecta (detrás de Render llega en x-forwarded-for). */
+const ipDe = (req) =>
+  String(req?.headers?.['x-forwarded-for']?.split(',')[0] || req?.socket?.remoteAddress || '').trim();
+
+/** ¿La conexión de este usuario sigue viva? (si no, es un fantasma) */
+const estaVivo = (u) =>
+  !!u && u.ws?.readyState === 1 && Date.now() - (u.visto || 0) < 90_000;
+
+wss.on('connection', (ws, req) => {
   let room = null;
   let user = null;
+  const ip = ipDe(req);
 
   ws.on('message', async (raw) => {
     let msg;
@@ -508,11 +521,13 @@ wss.on('connection', (ws) => {
     } catch {
       return enviar(ws, { type: 'error', message: 'JSON inválido.' });
     }
+    if (user) user.visto = Date.now(); // "sigo aquí" (para detectar fantasmas)
 
     if (msg.type === 'join') {
       if (room) return;
       const codigo = String(msg.code || '').toUpperCase().trim();
       const nombre = String(msg.name || '').trim().slice(0, 24) || 'Invitado';
+      const clientId = String(msg.clientId || '').slice(0, 64);
       room = obtenerSala(codigo);
       if (!room && esPublica(codigo)) {
         // las salas públicas se crean al vuelo: siempre están abiertas
@@ -520,8 +535,50 @@ wss.on('connection', (ws) => {
         room = crearSala(codigo, def?.nombre || codigo, true);
       }
       if (!room) return enviar(ws, { type: 'error', message: `No existe la sala ${codigo}.`, fatal: true });
+      if (!room.recientes) room.recientes = new Map(); // salas restauradas del disco
 
-      user = { id: randomUUID(), name: nombre, ws, role: 'member', joinedAt: Date.now() };
+      // Limpieza de duplicados: si la misma persona vuelve a entrar (recarga,
+      // se cae la red) no debe aparecer dos veces en la lista.
+      let idHeredado = null;
+      let rolHeredado = 'member';
+      // si se fue hace poco con el mismo navegador, recupera su sitio y su rol
+      if (clientId) {
+        const reciente = [...room.recientes.values()].find((r) => r.clientId === clientId);
+        if (reciente) {
+          idHeredado = reciente.id;
+          rolHeredado = reciente.role;
+          room.recientes.delete(reciente.id);
+          if (room.hostId === reciente.id) room.hostId = reciente.id;
+        }
+      }
+      for (const [id, u] of [...room.users]) {
+        // mismo navegador conectado: es la misma persona, recupera su sitio
+        if (clientId && u.clientId === clientId) {
+          idHeredado = id;
+          rolHeredado = u.role;
+          room.users.delete(id);
+          room.skipVotes.delete(id);
+          continue;
+        }
+        // misma IP pero la conexión está muerta: era una pestaña caída
+        // (OJO: dos personas en la misma wifi NO se tocan: solo si la
+        //  conexión de la otra está cerrada o lleva tiempo sin hablar)
+        if (ip && u.ip === ip && !estaVivo(u)) {
+          room.users.delete(id);
+          room.skipVotes.delete(id);
+        }
+      }
+
+      user = {
+        id: idHeredado || randomUUID(),
+        name: nombre,
+        ws,
+        role: rolHeredado,
+        joinedAt: Date.now(),
+        ip,
+        clientId,
+        visto: Date.now(),
+      };
       // el creador recupera el rol si vuelve; si no hay anfitrión presente, lo hereda el recién llegado
       const esDuenio = Boolean(msg.token) && msg.token === room.ownerToken;
       const hayAnfitrion = [...room.users.values()].some((u) => u.id === room.hostId);
@@ -548,6 +605,9 @@ wss.on('connection', (ws) => {
         ws,
         role: 'member',
         joinedAt: Date.now(),
+        ip,
+        clientId: String(msg.clientId || '').slice(0, 64),
+        visto: Date.now(),
       };
       room.hostId = user.id;
       room.users.set(user.id, user);
@@ -568,6 +628,23 @@ wss.on('connection', (ws) => {
     room.skipVotes.delete(user.id);
     room.reaccionUltima?.delete(user.id);
     if (room.encuesta) for (const op of room.encuesta.opciones) op.votos.delete(user.id);
+    // se guarda un recuerdo: si esta misma persona vuelve a entrar en un rato
+    // (recarga de la página, el móvil se quedó sin cobertura), recupera su
+    // identificador y su rol en vez de aparecer como alguien nuevo
+    if (user.clientId) {
+      room.recientes.set(user.id, {
+        id: user.id,
+        role: user.role,
+        clientId: user.clientId,
+        ip: user.ip,
+        name: user.name,
+        cuando: Date.now(),
+      });
+      // no guardamos recuerdos indefinidos
+      for (const [id, r] of [...room.recientes]) {
+        if (Date.now() - (r.cuando || 0) > 10 * 60_000) room.recientes.delete(id);
+      }
+    }
     // sale del canal de voz: sus conexiones WebRTC se quedaron sin sentido
     if (room.voz?.delete(user.id) && room.users.size > 0) {
       emitir(room, { type: 'voz.lista', nuevo: null, participantes: [...room.voz.keys()] });
@@ -593,6 +670,24 @@ setInterval(() => {
   for (const room of rooms.values()) emitirSync(room);
   const ahora = Date.now();
   for (const [codigo, room] of rooms) {
+    // barre las personas fantasma: conexiones cerradas o que llevan mucho
+    // tiempo sin decir nada (la pestaña se quedó colgada o se fue el wifi).
+    // Sin esto, al reentrar alguien aparecía duplicado en la lista.
+    for (const [id, u] of [...room.users]) {
+      if (estaVivo(u)) continue;
+      room.users.delete(id);
+      room.skipVotes.delete(id);
+      room.reaccionUltima?.delete(id);
+      if (room.voz?.delete(id) && room.users.size > 0) {
+        emitir(room, { type: 'voz.lista', nuevo: null, participantes: [...room.voz.keys()] });
+      }
+      if (room.encuesta) for (const op of room.encuesta.opciones) op.votos.delete(id);
+      if (room.hostId === id) {
+        const sucesor = [...room.users.values()].sort((a, b) => a.joinedAt - b.joinedAt)[0];
+        room.hostId = sucesor ? sucesor.id : null;
+      }
+    }
+    if (room.users.size > 0) emitir(room);
     if (room.users.size === 0 && ahora - room.lastSeen > SALA_VACIA_TTL_MS) rooms.delete(codigo);
   }
 }, INTERVALO_SYNC_MS);

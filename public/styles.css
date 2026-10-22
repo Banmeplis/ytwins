@@ -371,6 +371,18 @@ details.extras summary:hover{color:var(--txt)}
 .ia-btn.cargando{opacity:.7;position:relative}
 .ia-salida{background:var(--panel2);border:1px solid #3a4a72;border-radius:10px;padding:11px 13px;
   margin:10px 0 0;font:13px/1.5 inherit;color:#dbe6ff;white-space:pre-wrap;max-height:220px;overflow:auto}
+/* ------------------- volumen de cada persona (voz) --------------------- */
+.vol-caja{display:inline-flex;align-items:center;gap:5px;margin-left:auto;flex:0 0 auto}
+.vol-icono{background:transparent;border:1px solid var(--line);border-radius:8px;padding:2px 5px;font-size:13px;
+  line-height:1.2;cursor:pointer;min-width:30px;min-height:28px}
+.vol-icono:hover{border-color:var(--line-viva);background:rgba(255,255,255,.05)}
+.vol-icono.off{opacity:.5}
+.vol-rango{width:66px;height:22px;accent-color:var(--acento2);cursor:pointer}
+@media (max-width:520px){
+  .vol-rango{width:52px}
+  .vol-icono{min-width:28px;min-height:30px;padding:4px 6px}
+}
+
 .ia-estado{margin:8px 0 0;font-size:12px;color:var(--dim)}
 .boton-diag{width:100%;margin-top:4px;font-size:12.5px;padding:9px}
 

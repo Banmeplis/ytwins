@@ -40,6 +40,7 @@
     envioPendiente: [],       // muestrasint16 acumuladas por enviar
     vigor: null,              // AudioWorkletNode capturador
     reproductores: new Map(), // userId -> { ganancia, analizador, cola, programado, seq }
+    volumenes: new Map(),    // userId -> volumen local (0..2) que le pongo a esa persona
     hablantes: new Set(),
     hablando: false,
     voces: new Map(),         // bucles de medición por clave
@@ -594,17 +595,30 @@
     voz.hablantes = hablando
       ? new Set([...voz.hablantes, userId])
       : new Set([...voz.hablantes].filter((id) => id !== userId));
-    const nivel = (id) => (voz.hablantes.size === 0 ? 1 : voz.hablantes.has(id) ? 1 : 0.55);
-    for (const r of voz.reproductores.values()) {
-      try { r.ganancia.gain.value = 0.55; } catch {}
-    }
-    for (const id of voz.hablantes) {
-      const r = voz.reproductores.get(id);
-      if (r) { try { r.ganancia.gain.value = nivel(id); } catch {} }
-    }
-    if (voz.hablantes.size === 0) {
-      for (const r of voz.reproductores.values()) { try { r.ganancia.gain.value = 1; } catch {} }
-    }
+    aplicarGanancia(userId);
+  }
+
+  /** Volumen local de una persona (0 = silenciado, 1 = normal, 2 = el doble). */
+  function volumenDe(userId) {
+    const v = voz.volumenes.get(userId);
+    return v === undefined ? 1 : v;
+  }
+
+  /** Aplica volumen propio x centrado a la ganancia de cada persona. */
+  function aplicarGanancia(userId) {
+    const r = voz.reproductores.get(userId);
+    if (!r) return;
+    const propio = volumenDe(userId);
+    const centrado = voz.hablantes.size === 0 ? 1 : (voz.hablantes.has(userId) ? 1 : 0.55);
+    try { r.ganancia.gain.value = Math.max(0, Math.min(2, propio * centrado)); } catch {}
+  }
+
+  /** Cambia el volumen de una persona (solo en tu navegador). */
+  function setVolumen(userId, valor) {
+    const v = Math.max(0, Math.min(2, Number(valor)));
+    if (!isFinite(v)) return;
+    voz.volumenes.set(userId, v);
+    aplicarGanancia(userId);
   }
 
   /* ------------------------------ diagnóstico ------------------------------ */
@@ -685,6 +699,7 @@
     centrar: centrarVoz,
     dispositivos, cambiarMicro, setSensibilidad, setGanancia, setPushToTalk, hablarTemporal,
     reintentarAudio, diagnostico, depurar, pararMicro,
+    setVolumen, volumen: (userId) => volumenDe(userId),
     ajustes: () => ({ ...ajustes.datos }),
     aplicarAjustes: (a) => {
       Object.assign(ajustes.datos, a || {});
@@ -705,6 +720,8 @@
         id: String(id).slice(0, 6),
         cola: r.cola.length,
         seq: r.seq,
+        ganancia: Math.round((r.ganancia?.gain?.value ?? 1) * 100) / 100,
+        volumen: volumenDe(id),
         programado: Math.round((r.programado || 0) * 100) / 100,
       })),
     }),

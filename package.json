@@ -6,7 +6,8 @@
   "description": "Salas para ver YouTube sincronizados con amigos",
   "scripts": {
     "start": "node server/index.js",
-    "test": "node test/cliente.mjs && node test/ia.mjs && node test/protocolo.mjs && node test/voz.mjs && node test/cola.mjs && node test/publicas.mjs && node test/extensiones.mjs && node test/persistencia.mjs && node test/persistencia_pg.mjs",
+    "test": "node test/cliente.mjs && node test/ia.mjs && node test/protocolo.mjs && node test/voz.mjs && node test/cola.mjs && node test/publicas.mjs && node test/duplicados.mjs && node test/extensiones.mjs && node test/persistencia.mjs && node test/persistencia_pg.mjs",
+    "test:duplicados": "node test/duplicados.mjs",
     "test:protocolo": "node test/protocolo.mjs",
     "test:voz": "node test/voz.mjs",
     "test:fuentes": "node test/extensiones.mjs",

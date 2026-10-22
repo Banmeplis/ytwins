@@ -82,6 +82,23 @@ const pintarConexion = (tipo, texto) => {
 };
 
 /* ================================ red =================================== */
+
+/* Identificador del navegador: es lo que permite reconocer a la misma persona
+ * cuando vuelve a entrar (recargar la página, caer la red) y no duplicarla
+ * en la lista. */
+const CLIENTE_ID = (() => {
+  try {
+    let v = localStorage.getItem('yr-cliente');
+    if (!v) {
+      v = (window.crypto?.randomUUID?.() || (Date.now() + '-' + Math.random().toString(36).slice(2)));
+      localStorage.setItem('yr-cliente', v);
+    }
+    return v;
+  } catch {
+    return 'sin-id';
+  }
+})();
+
 function conectar({ crear = false, code = '', name = '', userName = '', sala = '' } = {}) {
   sesion = { crear, code, sala, name };
   nombreSesion = userName || name;
@@ -97,8 +114,8 @@ function abrirSocket() {
   ws.onopen = () => {
     reintentos = 0;
     pintarConexion('ok', 'conectado');
-    if (sesion.crear) enviar({ type: 'create', name: sesion.sala, userName: nombreSesion });
-    else enviar({ type: 'join', code: sesion.code, name: nombreSesion, token: sessionStorage.getItem('yr-' + sesion.code) || '' });
+    if (sesion.crear) enviar({ type: 'create', name: sesion.sala, userName: nombreSesion, clientId: CLIENTE_ID });
+    else enviar({ type: 'join', code: sesion.code, name: nombreSesion, clientId: CLIENTE_ID, token: sessionStorage.getItem('yr-' + sesion.code) || '' });
   };
 
   ws.onmessage = (ev) => {
@@ -510,6 +527,10 @@ function renderUsers() {
 
     li.append(nombre, etiquetas);
 
+    // control de volumen de CADA persona (solo en tu navegador): para
+    // bajarle el صوت a quien grita o silenciarlo del todo
+    if (mic && !esYo) li.append(controlVolumen(u));
+
     if (soyAnfitrion() && !u.anfitrion) {
       const btn = document.createElement('button');
       btn.className = 'btn';
@@ -525,6 +546,62 @@ function renderUsers() {
     }
     ul.appendChild(li);
   }
+}
+
+/* ---------------------- volumen de cada persona ------------------------ */
+
+const CLAVE_VOLUMENES = 'yr-volumenes';
+const volumenesGuardados = (() => {
+  try { return JSON.parse(localStorage.getItem(CLAVE_VOLUMENES) || '{}') || {}; } catch { return {}; }
+})();
+
+/** Mini control de volumen para una persona: icono + deslizador. */
+function controlVolumen(u) {
+  const caja = document.createElement('span');
+  caja.className = 'vol-caja';
+
+  const valor = Number(volumenesGuardados[u.id] ?? 1);
+  const boton = document.createElement('button');
+  boton.className = 'vol-icono';
+  boton.type = 'button';
+  boton.title = `Volumen de ${u.name} (solo en tu dispositivo)`;
+
+  const rango = document.createElement('input');
+  rango.type = 'range';
+  rango.min = '0';
+  rango.max = '200';
+  rango.step = '10';
+  rango.value = String(Math.round(valor * 100));
+  rango.className = 'vol-rango';
+  rango.title = `Volumen de ${u.name}`;
+
+  const pintar = (v) => {
+    boton.textContent = v <= 0 ? '🔇' : v < 0.5 ? '🔈' : v > 1.3 ? '🔊' : '🔉';
+    boton.classList.toggle('off', v <= 0);
+  };
+  pintar(valor);
+
+  const aplicar = (v, guardar = true) => {
+    const val = Math.max(0, Math.min(2, v / 100));
+    window.YTwinsVoz?.setVolumen?.(u.id, val);
+    pintar(val);
+    if (guardar) {
+      volumenesGuardados[u.id] = val;
+      try { localStorage.setItem(CLAVE_VOLUMENES, JSON.stringify(volumenesGuardados)); } catch {}
+    }
+  };
+
+  boton.onclick = () => {
+    // clic en el icono: silenciar o devolver al volumen normal
+    const v = Number(rango.value);
+    if (v <= 0) { rango.value = '100'; aplicar(100); } else { rango.value = '0'; aplicar(0); }
+  };
+  rango.oninput = () => aplicar(Number(rango.value));
+  // se aplica el volumen guardado de entrada (a quien aún no ha llegado audio)
+  window.YTwinsVoz?.setVolumen?.(u.id, valor);
+
+  caja.append(boton, rango);
+  return caja;
 }
 
 function renderPermisos() {
@@ -1034,7 +1111,6 @@ function avisoBuscar(txt, error = false) {
 function renderResultados() {
   const ul = $('#lista-resultados');
   ul.innerHTML = '';
-  const controla = puedoControlar();
 
   for (const r of resultados) {
     const li = document.createElement('li');
@@ -1060,18 +1136,18 @@ function renderResultados() {
     const datos = { videoId: r.url, title: r.title, duration: duracionSegundos(r.duration), thumbnail: r.thumbnail };
     add.onclick = () => { enviar({ type: 'queue.add', ...datos }); toast('Añadido a la cola'); };
     botones.append(add);
-    if (controla) {
-      const ya = document.createElement('button');
-      ya.className = 'btn primario';
-      ya.textContent = '▶ Ver';
-      ya.title = 'Reproducirlo ahora en la sala';
-      ya.onclick = () => enviar({ type: 'queue.add', ...datos, playNow: true });
-      botones.prepend(ya);
-    }
+    // "▶ Ver" lo tiene TODO el mundo: la sala es de todos y el anfitrión
+    // puede dejar el control en "solo anfitrión" si lo quiere
+    const ya = document.createElement('button');
+    ya.className = 'btn primario';
+    ya.textContent = '▶ Ver';
+    ya.title = 'Reproducirlo ahora en la sala';
+    ya.onclick = () => enviar({ type: 'queue.add', ...datos, playNow: true });
+    botones.prepend(ya);
     li.append(botones);
 
     // toda la miniatura también sirve para dar al play
-    if (controla) li.querySelector('.thumb')?.addEventListener('click', () => enviar({ type: 'queue.add', videoId: r.url, title: r.title, playNow: true }));
+    li.querySelector('.thumb')?.addEventListener('click', () => enviar({ type: 'queue.add', ...datos, playNow: true }));
 
     ul.appendChild(li);
   }
@@ -1465,7 +1541,9 @@ $('#btn-diagnostico').onclick = async () => {
 
 // Latido: mantiene viva la conexión (y evita que el alojamiento duerma la app
 // mientras hay gente en la sala). El servidor responde con un "pong" ignorado.
-setInterval(() => { if (estado && conectado()) enviar({ type: 'ping' }); }, 4 * 60 * 1000);
+// Además le dice al servidor que seguimos aquí: si no, nos tomaría por un
+// fantasma y nos borraría de la lista de participantes.
+setInterval(() => { if (estado && conectado()) enviar({ type: 'ping' }); }, 20 * 1000);
 
 (function autorejoin() {
   try {

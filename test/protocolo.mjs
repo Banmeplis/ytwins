@@ -108,7 +108,17 @@ ok(st.playback.fuente === 'youtube', 'fuente clasificada como youtube');
 ok(typeof st.playback.title === 'string' && st.playback.title.length > 0, 'título real obtenido por oEmbed');
 ok(typeof st.playback.thumbnail === 'string', 'miniatura disponible para la cola');
 
-// 5. B (sin permisos) no debe poder pausar
+// 5. por defecto controlan TODOS: cualquiera de la sala puede pausar
+const e1b = estado(A);
+send(B, { type: 'playback', action: 'pause', time: 0 });
+st = await e1b;
+ok(st.playback.playing === false, 'por defecto cualquier persona de la sala puede pausar');
+
+// 5b. si el anfitrión deja el control en "solo anfitrión", los demás no pueden
+const e1c = estado(A);
+send(A, { type: 'policy', value: 'host' });
+st = await e1c;
+ok(st.controlPolicy === 'host', 'el anfitrión puede dejar el control en "solo anfitrión"');
 send(B, { type: 'playback', action: 'pause', time: 0 });
 const err = await esperar(B, 'error');
 ok(/controla/.test(err.message), 'miembro sin permisos no puede pausar');

@@ -43,7 +43,10 @@ npm run test:persistencia  # 33 pruebas de guardado/carga de salas
 3. **🔍 Busca vídeos dentro de la app** (sin claves de API) o pega un enlace en
    la pestaña **Cola**. Pulsa **▶ Ver** para reproducir ya o **+ Cola**.
 4. El anfitrión controla reproducción y cola; puede **Dar control**, cambiar los
-   permisos (**Solo anfitrión** / **Todos**) o expulsar.
+   permisos (**Solo anfitrión** / **Todos**) o expulsar. Por defecto **controlan
+   todos**: cualquiera puede poner un vídeo desde el buscador, pausar, buscar o
+   pasar al siguiente. El anfitrión puede dejar el control en "solo anfitrión"
+   cuando prefiera.
 5. Cualquiera puede chatear, añadir a la cola, reaccionar y votar **✋ Saltar**.
 6. **La cola avanza sola** cuando un vídeo se acaba: el cliente avisa del final y
    el servidor comprueba la duración, así que la sala pasa al siguiente aunque
@@ -147,6 +150,15 @@ El botón **🎙️ Voz** de la barra superior abre un canal de audio para la sa
   sale del canal del todo.
 - En la lista de participantes cada uno con micro muestra 🎙️ o 🔇, y su nombre
   **se ilumina en verde mientras habla** (detección de volumen con Web Audio).
+- **Volumen por persona**: en la fila de cada participante con micro hay un
+  icono 🔊 y un deslizador para bajarle el volumen a quien habla demasiado (o
+  silenciarlo del todo con un clic). Es solo en tu dispositivo y se recuerda
+  para la próxima vez.
+- Si la misma persona vuelve a entrar (recarga, se cae la wifi), **no aparece
+  duplicada**: el servidor lo reconoce por un identificador del navegador y
+  además limpia las entradas fantasma (conexiones muertas con la misma IP).
+  Dos personas en la misma wifi no se pisan: solo se borra a quien lleva
+  tiempo sin conexión.
 - Se activa con eco cancelación y supresión de ruido, para que no se pisen
   entre sí al hablar.
 - Quien entra al canal lo hace por el mismo cable que el chat, así que no hay
