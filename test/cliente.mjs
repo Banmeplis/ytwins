@@ -120,6 +120,7 @@ ok(/playback\.duracion/.test(app), 'el cliente informa de la duración real del 
 ok(/duracionSegundos/.test(app), 'la duración del buscador se convierte a segundos');
 const serverJs = await readFile(path.join(PUBLIC, '..', 'server', 'index.js'), 'utf8');
 const indexHtml = await readFile(path.join(PUBLIC, 'index.html'), 'utf8');
+const css = await readFile(path.join(PUBLIC, 'styles.css'), 'utf8');
 ok(/case 'playback\.ended'/.test(serverJs), 'el servidor acepta el aviso de fin de vídeo');
 ok(/case 'playback\.duracion'/.test(serverJs), 'el servidor guarda la duración real');
 ok(/posicionActual\(room\) >= pb\.duration|posicionActual\(room\) < pb\.duration/.test(serverJs), 'el servidor comprueba el final del vídeo por su cuenta');
@@ -163,6 +164,18 @@ ok(/CLIENTE_ID/.test(app) && /clientId/.test(app), 'el cliente manda un identifi
 ok(/clientId/.test(serverJs) && /recientes/.test(serverJs), 'el servidor reconoce a la misma persona y no la duplica');
 ok(/estaVivo/.test(serverJs) && /u\.ip === ip/.test(serverJs), 'los fantasmas con la misma IP se limpian si su conexión está muerta');
 ok(/controlPolicy: 'everyone'/.test(serverJs), 'por defecto controlan todos los de la sala');
+
+// el vídeo no puede reiniciarse en bucle al sincronizar: al final del vídeo
+// el servidor sigue contando segundos y el cliente buscaba hacia atrás
+ok(/terminado/.test(app) && /cercaFinal/.test(app) && /servidorPasado/.test(app), 'el cliente no busca si el vídeo ya terminó o está en su último momento');
+ok(/avisarFinDeVideo/.test(app), 'al terminar solo se avisa del final (sin buscar)');
+ok(/t > pb\.duration\) return pb\.duration/.test(serverJs), 'el servidor tampoco cuenta más allá del final del vídeo');
+ok(/st === 'ended'/.test(app), 'la sincronización respeta el estado "terminado" del reproductor');
+
+// los plugins de la sala están ocultos (solo en "✨ Extras") y hay burbuja de micro
+ok((indexHtml.match(/id="caja-plugins"/g) || []).length === 1, 'los plugins de la sala salen solo dentro de Extras (sin duplicados)');
+ok(/btn-micro-burbuja/.test(indexHtml) && /pintarBurbujaMicro/.test(app), 'la burbuja del micro está junto a la del chat');
+ok(/chat-flotante'\)\.hidden = true/.test(app) && /chat-flotante\[hidden\]/.test(css), 'las burbujas solo se ven dentro de la sala (ocultas en el lobby)');
 
 console.log(fallos === 0 ? '\nTodas las pruebas pasaron ✓' : `\n${fallos} pruebas fallidas`);
 setTimeout(() => process.exit(fallos ? 1 : 0), 100);

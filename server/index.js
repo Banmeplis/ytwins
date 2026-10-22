@@ -84,7 +84,11 @@ function posicionActual(room) {
   const pb = room.playback;
   if (!pb.ref) return 0;
   if (!pb.playing) return pb.position;
-  return pb.position + (Date.now() - pb.updatedAt) / 1000;
+  const t = pb.position + (Date.now() - pb.updatedAt) / 1000;
+  // nunca más allá del final: si no, el servidor pedía saltar a un punto
+  // imposible y el vídeo se reiniciaba en bucle
+  if (pb.duration && t > pb.duration) return pb.duration;
+  return t;
 }
 
 function serializar(room) {

@@ -228,6 +228,7 @@ function cerrar() {
   if (ws) { ws.onclose = null; try { ws.close(); } catch {} ws = null; }
   $('#vista-sala').classList.remove('activa');
   $('#vista-lobby').classList.add('activa');
+  $('#chat-flotante').hidden = true; // al salir de la sala, no hay burbujas
   pintarPublicas(); // al volver al lobby, las salas públicas al día
 }
 
@@ -241,6 +242,8 @@ function mostrarSala() {
   $('#vista-lobby').classList.remove('activa');
   $('#vista-sala').classList.add('activa');
   $('#sala-codigo').textContent = codigo;
+  $('#chat-flotante').hidden = false; // las burbujas (chat y micro) solo en la sala
+  pintarBurbujaMicro();
 }
 /* ============================ reproductor =============================== */
 function asegurarReproductor(fuente) {
@@ -292,6 +295,16 @@ function alAccionLocal(tipo, t) {
 }
 
 const repListo = () => !!(rep && (typeof rep.listo === 'function' ? rep.listo() : rep.creado && rep.duracion() > 0));
+
+/** Avisa al servidor de que este vídeo se acabó (para que la cola siga).
+ *  Con calma: como mucho una vez cada 5 segundos. */
+let ultimoAvisoFin = 0;
+function avisarFinDeVideo() {
+  const ahora = Date.now();
+  if (ahora - ultimoAvisoFin < 5000) return;
+  ultimoAvisoFin = ahora;
+  enviar({ type: 'playback.ended' });
+}
 
 /** Sincroniza el reproductor local con el estado autoritativo del servidor. */
 function aplicarEstado(soloSync = false) {
@@ -357,18 +370,33 @@ function aplicarEstado(soloSync = false) {
   if (repListo()) {
     try {
       const local = rep.tiempo();
-      desfase = Math.abs(local - servidor);
-      if (desfase > UMBRAL_SYNC && !soloSync && !accionNueva) {
-        const salto = ultimoLocal === null ? 0 : Math.abs(local - ultimoLocal);
-        if (puedoControlar() && salto > SALTO_SEEK) {
-          // el que controla movió la barra del propio vídeo: adoptar su posición
-          ultimaAccionLocal = ahora;
-          enviar({ type: 'playback', action: 'seek', time: local });
-          desfase = 0;
-        } else {
-          ultimaAccionLocal = ahora;
-          rep.buscar(servidor);
-          desfase = 0;
+      const dur = rep.duracion() || pb.duration || 0;
+      const st = rep.estado;
+
+      if (st === 'ended') {
+        // el vídeo ya se acabó: NO se busca (volver atrás reiniciaba la
+        // canción una y otra vez). Solo se avisa para que la cola siga.
+        desfase = 0;
+        avisarFinDeVideo();
+      } else {
+        desfase = Math.abs(local - servidor);
+        // el servidor va más allá del final (el vídeo terminó antes) o el
+        // local ya está en el último momento: en ambos casos buscar
+        // reiniciaba el vídeo sin parar
+        const pasado = dur > 0 && servidor > dur + 1;
+        const cercaFinal = dur > 0 && local >= dur - 2.5;
+        if (desfase > UMBRAL_SYNC && !soloSync && !accionNueva && !pasado && !cercaFinal) {
+          const salto = ultimoLocal === null ? 0 : Math.abs(local - ultimoLocal);
+          if (puedoControlar() && salto > SALTO_SEEK) {
+            // el que controla movió la barra del propio vídeo: adoptar su posición
+            ultimaAccionLocal = ahora;
+            enviar({ type: 'playback', action: 'seek', time: local });
+            desfase = 0;
+          } else {
+            ultimaAccionLocal = ahora;
+            rep.buscar(servidor);
+            desfase = 0;
+          }
         }
       }
     } catch {}
@@ -415,21 +443,35 @@ setInterval(() => {
       }
     }
     const local = rep.tiempo();
+    const dur = rep.duracion() || pb.duration || 0;
+    const st = rep.estado;
     desfaseActual = Math.abs(local - servidor);
-    const salto = ultimoLocal === null ? 0 : Math.abs(local - ultimoLocal);
-    ultimoLocal = local;
     const esMio = Date.now() - ultimaAccionLocal < 1000;
-    if (!esMio && puedoControlar() && salto > SALTO_SEEK && desfaseActual > UMBRAL_SYNC) {
-      // el que controla movió la barra del propio vídeo: adoptar su posición
-      ultimaAccionLocal = Date.now();
-      enviar({ type: 'playback', action: 'seek', time: local });
+    // Si el vídeo ya terminó (o está en su último momento) NO se busca: el
+    // servidor sigue contando segundos y el salto hacia atrás reiniciaba la
+    // canción una y otra vez. Solo se avisa del final para que la cola siga.
+    const terminado = st === 'ended';
+    const cercaFinal = dur > 0 && local >= dur - 2.5;
+    const servidorPasado = dur > 0 && servidor > dur + 1;
+    if (terminado) {
       desfaseActual = 0;
-    } else if (!esMio && desfaseActual > UMBRAL_SYNC) {
-      // corrige cualquiera: el servidor es la referencia
-      ultimaAccionLocal = Date.now();
-      try { rep.buscar(servidor); } catch {}
+      avisarFinDeVideo();
+    } else if (esMio || desfaseActual <= UMBRAL_SYNC || cercaFinal || servidorPasado) {
+      // nada que corregir
+    } else {
+      const salto = ultimoLocal === null ? 0 : Math.abs(local - ultimoLocal);
+      if (puedoControlar() && salto > SALTO_SEEK) {
+        // el que controla movió la barra del propio vídeo: adoptar su posición
+        ultimaAccionLocal = Date.now();
+        enviar({ type: 'playback', action: 'seek', time: local });
+      } else {
+        // corrige cualquiera: el servidor es la referencia
+        ultimaAccionLocal = Date.now();
+        try { rep.buscar(servidor); } catch {}
+      }
       desfaseActual = 0;
     }
+    ultimoLocal = local;
   }
 
   pintarEstadoSync();
@@ -867,6 +909,25 @@ function pintarBotonVoz() {
         ? 'Mantén pulsado para hablar · Shift+clic para salir del canal'
         : `Estás en el canal de voz · ${v.conexiones} persona(s) más. Clic para silenciar, Shift+clic para salir.`
       : 'Entrar al canal de voz con tu micrófono';
+  pintarBurbujaMicro(v);
+}
+
+/** La burbuja del micro (junto a la del chat) refleja el estado de la voz. */
+function pintarBurbujaMicro(v = window.YTwinsVoz?.estado?.()) {
+  const b = $('#btn-micro-burbuja');
+  if (!b) return;
+  const activo = !!v?.activa;
+  b.classList.toggle('encendido', activo && !v.silenciado);
+  b.classList.toggle('silenciado', activo && v.silenciado);
+  b.disabled = !vozPluginActivo();
+  const emoji = $('#micro-emoji');
+  if (emoji) emoji.textContent = !vozPluginActivo() ? '🚫' : activo ? (v.silenciado ? '🔇' : '🎙️') : '🎙️';
+  b.title = !vozPluginActivo()
+    ? 'El anfitrión ha desactivado la voz en esta sala'
+    : activo
+      ? (v.silenciado ? 'Estás silenciado: clic para hablar' : 'Estás hablando: clic para silenciar')
+      : 'Activar el micrófono';
+  b.setAttribute('aria-label', b.title);
 }
 
 async function entrarVoz() {
@@ -1219,6 +1280,25 @@ $('#btn-unirse').onclick = () => {
   if (code.length !== 6) return errorLobby('El código tiene 6 caracteres.');
   $('#lobby-error').hidden = true;
   conectar({ code, name: nombre });
+};
+
+/* --------- burbuja del micrófono (junto a la del chat) ------------------ */
+
+$('#btn-micro-burbuja').onclick = async () => {
+  if (!vozPluginActivo()) return toast('El anfitrión ha desactivado la voz en esta sala.', true);
+  const v = window.YTwinsVoz?.estado?.() || {};
+  if (!v.activa) {
+    // primera vez: pide el micrófono y entra al canal
+    await entrarVoz();
+    return pintarBurbujaMicro();
+  }
+  // ya está en el canal: silencia o reactiva (igual que el micro del chat)
+  if (v.ptt) {
+    window.YTwinsVoz.hablarTemporal(true);
+    return pintarBurbujaMicro();
+  }
+  window.YTwinsVoz.alternarMicro();
+  pintarBotonVoz();
 };
 
 /* ------------------------- salas públicas (4 fijas) --------------------- */

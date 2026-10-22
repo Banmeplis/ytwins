@@ -52,10 +52,14 @@ npm run test:persistencia  # 33 pruebas de guardado/carga de salas
    el servidor comprueba la duración, así que la sala pasa al siguiente aunque
    la pestaña de quien controlaba esté en segundo plano (el navegador no
    dispara el evento de fin en segundo plano y antes la cola se quedaba
-   parada con el grupo en silencio).
+   parada con el grupo en silencio). Al terminar no se rebobina: el vídeo
+   cansado no se repite en bucle.
 7. Las **encuestas**, las **notas compartidas** y los interruptores de plugins
    viven en el desplegable **✨ Extras** de la barra lateral (el chat queda
    siempre a la vista). Extras se abre solo cuando alguien abre una encuesta.
+8. En la esquina inferior derecha están las **dos burbujas**: la del **chat** 💬
+   y la del **micrófono** 🎙️ (justo al lado). Solo aparecen cuando estás
+   dentro de la sala: en el lobby no hay ninguna.
 
 Atajos: `Espacio` reproduce/pausa.
 

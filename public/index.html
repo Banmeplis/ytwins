@@ -170,11 +170,6 @@
           <button class="chip alt" data-policy="everyone">Todos</button>
         </div>
         <ul id="lista-users" class="lista"></ul>
-
-        <div id="caja-plugins" class="plugins" hidden>
-          <h3>Plugins de la sala</h3>
-          <div id="lista-plugins"></div>
-        </div>
       </div>
 
       <div class="panel aviso-flotante" id="aviso-flotante" hidden>
@@ -228,7 +223,8 @@
 <div id="capa-audio" aria-hidden="true" style="position:fixed;width:0;height:0;overflow:hidden"></div>
 
 <!-- ======================= CHAT FLOTANTE (burbuja) ======================= -->
-<div class="chat-flotante" id="chat-flotante">
+<!-- oculto en el lobby: las burbujas solo existen dentro de la sala -->
+<div class="chat-flotante" id="chat-flotante" hidden>
   <section class="chat-panel panel" id="panel-chat" hidden>
     <header class="chat-cab">
       <h2>Chat</h2>
@@ -282,10 +278,17 @@
     </form>
   </section>
 
-  <button id="btn-chat" class="chat-boton" title="Abrir el chat" aria-label="Abrir el chat">
-    <span class="emoji-chat">💬</span>
-    <span class="insignia" id="chat-insignia" hidden>0</span>
-  </button>
+  <div class="burbujas">
+    <!-- burbuja del micrófono: al lado de la del chat -->
+    <button id="btn-micro-burbuja" class="chat-boton micro-burbuja" title="Activar el micrófono" aria-label="Activar el micrófono">
+      <span class="emoji-chat" id="micro-emoji">🎙️</span>
+    </button>
+
+    <button id="btn-chat" class="chat-boton" title="Abrir el chat" aria-label="Abrir el chat">
+      <span class="emoji-chat">💬</span>
+      <span class="insignia" id="chat-insignia" hidden>0</span>
+    </button>
+  </div>
 </div>
 
 <script src="/player.js"></script>

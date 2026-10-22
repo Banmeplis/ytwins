@@ -271,6 +271,9 @@ h1,h2{margin:0}
 /* --------------------- chat flotante (burbuja) --------------------------- */
 .chat-flotante{position:fixed;right:18px;bottom:18px;z-index:45;display:flex;flex-direction:column;
   align-items:flex-end;gap:10px;pointer-events:none}
+/* la regla de arriba pone display:flex, así que hidden necesita su propia
+   línea para ocultarlo de verdad (en el lobby no hay burbujas) */
+.chat-flotante[hidden]{display:none}
 .chat-flotante>*{pointer-events:auto}
 
 .chat-boton{width:60px;height:60px;border-radius:50%;border:none;cursor:pointer;position:relative;
@@ -285,6 +288,16 @@ h1,h2{margin:0}
 .chat-boton.pide-atencion{animation:llamar .9s ease-in-out infinite}
 @keyframes llamar{0%,100%{box-shadow:0 12px 34px rgba(255,61,90,.42),0 0 0 0 rgba(255,61,90,.5)}
   50%{box-shadow:0 12px 34px rgba(255,61,90,.42),0 0 0 14px rgba(255,61,90,0)}}
+
+/* las dos burbujas (micro y chat) van juntas en la esquina */
+.burbujas{display:flex;align-items:center;gap:10px;pointer-events:auto}
+.micro-burbuja{background:linear-gradient(140deg,#39445c,#2b3346 60%,#232a3a);
+  box-shadow:0 12px 30px rgba(0,0,0,.45),0 2px 0 rgba(255,255,255,.14) inset}
+.micro-burbuja:hover{box-shadow:0 16px 38px rgba(0,0,0,.5),0 2px 0 rgba(255,255,255,.2) inset}
+.micro-burbuja.encendido{background:linear-gradient(140deg,#2fd6a8,#17a37f 55%,#2f9be8);
+  box-shadow:0 12px 32px rgba(23,163,127,.45),0 2px 0 rgba(255,255,255,.28) inset}
+.micro-burbuja.silenciado{background:linear-gradient(140deg,#6b7280,#4b5563 60%,#374151)}
+.micro-burbuja[disabled]{opacity:.45;cursor:not-allowed}
 
 .insignia{position:absolute;top:-4px;right:-4px;min-width:24px;height:24px;padding:0 6px;border-radius:999px;
   background:var(--ok);color:#04220f;font-size:12px;font-weight:800;display:grid;place-items:center;
