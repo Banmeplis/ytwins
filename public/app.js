@@ -832,7 +832,7 @@ function conectarOpcionesVoz() {
 }
 
 /* --- Cuando alguien habla, el vídeo se aparta y la voz se centra --------- */
-const VOL_ATENUADO = 0.2;  // el vídeo se queda al 20 % mientras haya voz
+const VOL_ATENUADO = 0.1;  // el vídeo se queda al 10 % mientras haya voz (que se escuchen las voces)
 let volUsuario = 1;        // el volumen que había elegido (se recuerda)
 let volAplicado = 1;       // el que realmente está sonando ahora
 let volTemporizador = null;
@@ -1360,9 +1360,87 @@ $('#in-codigo').addEventListener('keydown', (e) => { if (e.key === 'Enter') $('#
 $('#in-nombre').addEventListener('keydown', (e) => { if (e.key === 'Enter') $('#btn-unirse').click(); });
 
 /* burbuja del chat */
-$('#btn-chat').onclick = () => abrirChat($('#panel-chat').hidden, { foco: true });
+$('#btn-chat').onclick = () => {
+  if (!$('#panel-ajustes').hidden) abrirAjustes(false); // cierra ajustes si está abierto
+  abrirChat($('#panel-chat').hidden, { foco: true });
+};
 $('#btn-cerrar-chat').onclick = () => abrirChat(false);
-$('#aviso-flotante').onclick = () => abrirChat(true, { foco: true });
+
+/* burbuja de ajustes de voz: se abre el panel de ajustes */
+$('#btn-ajustes-burbuja').onclick = () => {
+  if (!$('#panel-chat').hidden) abrirChat(false); // cierra chat si está abierto
+  abrirAjustes($('#panel-ajustes').hidden);
+};
+$('#btn-cerrar-ajustes').onclick = () => abrirAjustes(false);
+
+/* burbuja del micro */
+$('#btn-micro-burbuja').onclick = async () => {
+  if (!vozPluginActivo()) return toast('El anfitrión ha desactivado la voz en esta sala.', true);
+  const v = window.YTwinsVoz?.estado?.() || {};
+  if (!v.activa) {
+    await entrarVoz();
+    return pintarBurbujaMicro();
+  }
+  if (v.ptt) {
+    window.YTwinsVoz.hablarTemporal(true);
+    return pintarBurbujaMicro();
+  }
+  window.YTwinsVoz.alternarMicro();
+  pintarBotonVoz();
+};
+
+/* ajustes de voz como botones burbuja (no inputs de texto) */
+function aplicarAjuste(tipo, valor) {
+  const v = parseFloat(valor);
+  if (tipo === 'sensibilidad') window.YTwinsVoz.setSensibilidad(v);
+  if (tipo === 'ganancia') window.YTwinsVoz.setGanancia(v);
+  if (tipo === 'ptt') window.YTwinsVoz.setPushToTalk(v === 1);
+  window.YTwinsVoz.aplicarAjustes({ [tipo]: v });
+  pintarAjustes();
+  pintarBurbujaMicro();
+}
+
+function pintarAjustes() {
+  const a = window.YTwinsVoz?.ajustes?.() || {};
+  // sensibilidad
+  const s = document.querySelectorAll('.ajuste-btn[data-ajuste="sensibilidad"]');
+  s.forEach(b => b.classList.toggle('activo', String(b.dataset.valor) === String(a.sensibilidad)));
+  $('#ajuste-sensibilidad-texto').textContent = etiquetaSensibilidad(Number(a.sensibilidad));
+  // ganancia
+  const g = document.querySelectorAll('.ajuste-btn[data-ajuste="ganancia"]');
+  g.forEach(b => b.classList.toggle('activo', String(b.dataset.valor) === String(a.ganancia)));
+  $('#ajuste-ganancia-texto').textContent = `${Math.round((a.ganancia ?? 1) * 100)} %`;
+  // ptt
+  const p = document.querySelectorAll('.ajuste-btn[data-ajuste="ptt"]');
+  p.forEach(b => b.classList.toggle('activo', String(b.dataset.valor) === String(a.ptt ? 1 : 0)));
+  $('#ajuste-ptt-texto').textContent = a.ptt ? 'Mantén pulsado' : 'Siempre abierto';
+}
+
+document.querySelectorAll('.ajuste-btn').forEach((b) => {
+  b.onclick = () => aplicarAjuste(b.dataset.ajuste, b.dataset.valor);
+});
+
+/* refresco de micrófono y diagnóstico desde el panel de ajustes */
+$('#btn-refrescar-micro').onclick = async () => {
+  listarMicros();
+};
+$('#btn-diagnostico').onclick = async () => {
+  const salida = $('#diag-salida');
+  salida.hidden = false;
+  salida.textContent = 'Comprobando…';
+  const r = await window.YTwinsVoz.diagnostico();
+  salida.textContent = r.texto;
+};
+
+function abrirAjustes(abrir) {
+  const panel = $('#panel-ajustes');
+  panel.hidden = !abrir;
+  if (abrir) {
+    pintarAjustes();
+    pintarMedidor();
+  }
+}
+
 // atajo: "c" abre y cierra el chat (sin estorbar mientras escribes)
 document.addEventListener('keydown', (e) => {
   if (e.key.toLowerCase() !== 'c' || e.ctrlKey || e.metaKey || e.altKey) return;
@@ -1370,6 +1448,7 @@ document.addEventListener('keydown', (e) => {
   if (!$('#vista-sala').classList.contains('activa')) return;
   abrirChat($('#panel-chat').hidden, { foco: true });
 });
+
 
 $('#btn-salir').onclick = () => {
   sessionStorage.removeItem('yr-ultima');

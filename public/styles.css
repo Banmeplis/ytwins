@@ -299,6 +299,66 @@ h1,h2{margin:0}
 .micro-burbuja.silenciado{background:linear-gradient(140deg,#6b7280,#4b5563 60%,#374151)}
 .micro-burbuja[disabled]{opacity:.45;cursor:not-allowed}
 
+/* burbuja de ajustes */
+.ajustes-burbuja{background:linear-gradient(140deg,#6366f1,#4f46e5 60%,#4338ca);
+  box-shadow:0 12px 30px rgba(99,102,241,.45),0 2px 0 rgba(255,255,255,.14) inset}
+.ajustes-burbuja:hover{box-shadow:0 16px 38px rgba(99,102,241,.5),0 2px 0 rgba(255,255,255,.2) inset}
+
+/* paneles de chat y ajustes (se abren al pulsar la burbuja) */
+.chat-panel{position:fixed;right:18px;bottom:95px;z-index:50;width:min(340px,92vw);
+  max-height:85vh;display:flex;flex-direction:column;background:var(--panel);
+  border:1px solid var(--line);border-radius:16px;box-shadow:0 20px 60px rgba(0,0,0,.5);
+  backdrop-filter:blur(12px) saturate(120%);overflow:hidden;transform-origin:right bottom;
+  animation:panelAparece .18s ease-out}
+.chat-panel[hidden]{display:none}
+.chat-cab{display:flex;align-items:center;justify-content:space-between;padding:12px 16px;
+  border-bottom:1px solid var(--line);background:rgba(0,0,0,.2)}
+.chat-cab h2{font-size:15px;color:var(--txt)}
+.cerrar-chat{background:none;border:none;color:var(--dim);font-size:18px;
+  cursor:pointer;padding:4px;border-radius:8px}
+.cerrar-chat:hover{color:var(--txt);background:rgba(255,255,255,.08)}
+
+/* lista de mensajes */
+#lista-chat{flex:1;overflow-y:auto;padding:12px;display:flex;flex-direction:column;gap:8px;
+  background:rgba(0,0,0,.15)}
+.chat-msg{display:flex;gap:8px;align-items:flex-end}
+.chat-msg .autor{font-size:11px;font-weight:700;color:var(--acento2)}
+.chat-msg .texto{font-size:13px;color:var(--txt);max-width:200px;word-wrap:break-word}
+.chat-msg .hora{font-size:10px;color:var(--dim)}
+
+/* formulario de chat */
+.fila-chat{display:flex;gap:8px;padding:10px 12px;border-top:1px solid var(--line);
+  background:rgba(0,0,0,.2)}
+.fila-chat input{flex:1;padding:8px 12px;border-radius:10px;border:1px solid var(--line);
+  background:var(--panel2);color:var(--txt)}
+.fila-chat .btn.primario{padding:8px 14px}
+
+/* ajustes de voz */
+.ajustes-cuerpo{padding:12px;display:flex;flex-direction:column;gap:10px;
+  background:rgba(0,0,0,.15)}
+.ajuste-grupo{display:flex;flex-direction:column;gap:4px}
+.ajuste-label{font-size:12px;color:var(--dim)}
+.ajuste-botones{display:flex;gap:6px;flex-wrap:wrap}
+.ajuste-btn{padding:5px 10px;border-radius:8px;border:1px solid var(--line);
+  background:var(--panel2);color:var(--txt);font-size:11.5px;cursor:pointer}
+.ajuste-btn:hover{border-color:var(--acento2);background:rgba(255,255,255,.06)}
+.ajuste-btn.activo{border-color:var(--acento2);background:rgba(99,102,241,.2);color:var(--acento2)}
+.ajuste-botones.fila-acciones{justify-content:center}
+#ajuste-sensibilidad-texto,#ajuste-ganancia-texto,#ajuste-ptt-texto{font-size:11px;color:var(--dim);margin-top:4px}
+
+/* medidor de nivel en el panel de ajustes */
+.medidor-burbuja{margin-top:8px;padding-top:8px;border-top:1px solid var(--line)}
+.medidor-barra{height:8px;border-radius:999px;background:#0b0e14;border:1px solid var(--line);
+  position:relative;overflow:hidden}
+.medidor-barra::after{content:'';position:absolute;left:0;top:0;bottom:0;width:0%;
+  background:linear-gradient(90deg,var(--acento),var(--acento2));transition:width .15s}
+
+
+/* burbuja de ajustes */
+.ajustes-burbuja{background:linear-gradient(140deg,#6366f1,#4f46e5 60%,#4338ca);
+  box-shadow:0 12px 30px rgba(99,102,241,.45),0 2px 0 rgba(255,255,255,.14) inset}
+.ajustes-burbuja:hover{box-shadow:0 16px 38px rgba(99,102,241,.5),0 2px 0 rgba(255,255,255,.2) inset}
+
 .insignia{position:absolute;top:-4px;right:-4px;min-width:24px;height:24px;padding:0 6px;border-radius:999px;
   background:var(--ok);color:#04220f;font-size:12px;font-weight:800;display:grid;place-items:center;
   box-shadow:0 0 0 3px var(--bg),0 4px 12px rgba(0,0,0,.4)}

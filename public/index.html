@@ -223,61 +223,8 @@
 <div id="capa-audio" aria-hidden="true" style="position:fixed;width:0;height:0;overflow:hidden"></div>
 
 <!-- ======================= CHAT FLOTANTE (burbuja) ======================= -->
-<!-- oculto en el lobby: las burbujas solo existen dentro de la sala -->
+<!-- BURBUJAS FLOTANTES (solo dentro de la sala: ocultas en el lobby) -->
 <div class="chat-flotante" id="chat-flotante" hidden>
-  <section class="chat-panel panel" id="panel-chat" hidden>
-    <header class="chat-cab">
-      <h2>Chat</h2>
-      <button id="btn-cerrar-chat" class="btn cerrar-chat" title="Cerrar el chat" aria-label="Cerrar el chat">✕</button>
-    </header>
-
-    <div id="lista-chat" class="chat"></div>
-
-    <details class="opciones-voz" id="opciones-voz">
-      <summary>⚙️ Opciones de micrófono</summary>
-      <div class="opciones-cuerpo">
-        <label class="opcion">
-          <span>Micrófono <i id="val-micro">—</i></span>
-          <div class="fila-sel">
-            <select id="sel-micro"></select>
-            <button id="btn-refrescar-micro" class="btn micro-refrescar" title="Buscar más dispositivos" aria-label="Buscar más dispositivos">🔄</button>
-          </div>
-          <small class="pista" id="pista-micro">Activa el micro una vez para ver todos los dispositivos con su nombre.</small>
-        </label>
-
-        <label class="opcion">
-          <span>Sensibilidad <i id="val-sensibilidad">normal</i></span>
-          <input id="in-sensibilidad" type="range" min="2" max="30" step="1" value="6" />
-        </label>
-
-        <label class="opcion">
-          <span>Volumen del micro <i id="val-ganancia">100 %</i></span>
-          <input id="in-ganancia" type="range" min="20" max="300" step="10" value="100" />
-        </label>
-
-        <label class="opcion fila">
-          <input id="in-ptt" type="checkbox" />
-          <span>Hablar solo mientras mantengo pulsado 🎙️</span>
-        </label>
-
-        <div class="medidor" title="Nivel de tu micrófono">
-          <div class="medidor-barra" id="medidor-barra"></div>
-          <span id="medidor-texto">micro cerrado</span>
-        </div>
-
-        <button id="btn-diagnostico" class="btn boton-diag" type="button">🩺 Diagnosticar el audio</button>
-        <pre id="diag-salida" class="ia-salida" hidden></pre>
-      </div>
-    </details>
-
-    <form id="form-chat" class="fila-chat">
-      <button id="btn-voz" type="button" class="btn mic" title="Entrar al canal de voz. Con el micro abierto: clic silencia y Shift+clic sale.">🎙️</button>
-      <button id="btn-voz-opciones" type="button" class="btn micro-ajustes" title="Opciones de micrófono" aria-label="Opciones de micrófono">⚙️</button>
-      <input id="in-chat" type="text" maxlength="500" placeholder="Escribe un mensaje…" autocomplete="off" />
-      <button class="btn primario" type="submit">➤</button>
-    </form>
-  </section>
-
   <div class="burbujas">
     <!-- burbuja del micrófono: al lado de la del chat -->
     <button id="btn-micro-burbuja" class="chat-boton micro-burbuja" title="Activar el micrófono" aria-label="Activar el micrófono">
@@ -288,7 +235,85 @@
       <span class="emoji-chat">💬</span>
       <span class="insignia" id="chat-insignia" hidden>0</span>
     </button>
+
+    <!-- burbuja de ajustes de voz: botones, no inputs de texto -->
+    <button id="btn-ajustes-burbuja" class="chat-boton ajustes-burbuja" title="Ajustes del micrófono" aria-label="Ajustes del micrófono">
+      <span class="emoji-chat">⚙️</span>
+    </button>
   </div>
+
+  <!-- Panel de chat (solo se muestra al abrir la burbuja del chat) -->
+  <section class="chat-panel panel" id="panel-chat" hidden>
+    <header class="chat-cab">
+      <h2>Chat</h2>
+      <button id="btn-cerrar-chat" class="btn cerrar-chat" title="Cerrar el chat" aria-label="Cerrar el chat">✕</button>
+    </header>
+
+    <div id="lista-chat" class="chat"></div>
+
+    <form id="form-chat" class="fila-chat">
+      <button id="btn-voz" type="button" class="btn mic" title="Entrar al canal de voz. Con el micro abierto: clic silencia y Shift+clic sale.">🎙️</button>
+      <button id="btn-voz-opciones" type="button" class="btn micro-ajustes" title="Opciones de micrófono" aria-label="Opciones de micrófono">⚙️</button>
+      <input id="in-chat" type="text" maxlength="500" placeholder="Escribe un mensaje…" autocomplete="off" />
+      <button class="btn primario" type="submit">➤</button>
+    </form>
+  </section>
+
+  <!-- Panel de ajustes de voz (solo se muestra al abrir la burbuja de ajustes) -->
+  <section class="chat-panel panel" id="panel-ajustes" hidden>
+    <header class="chat-cab">
+      <h2>🎙️ Ajustes de voz</h2>
+      <button id="btn-cerrar-ajustes" class="btn cerrar-chat" title="Cerrar ajustes" aria-label="Cerrar ajustes">✕</button>
+    </header>
+
+    <div class="ajustes-cuerpo">
+      <!-- Botones burbuja para sensibilidad -->
+      <div class="ajuste-grupo">
+        <label class="ajuste-label">Sensibilidad</label>
+        <div class="ajuste-botones">
+          <button class="ajuste-btn" data-ajuste="sensibilidad" data-valor="0.03">Muy alta</button>
+          <button class="ajuste-btn" data-ajuste="sensibilidad" data-valor="0.06">Normal</button>
+          <button class="ajuste-btn" data-ajuste="sensibilidad" data-valor="0.15">Baja</button>
+          <button class="ajuste-btn" data-ajuste="sensibilidad" data-valor="0.30">Mínima</button>
+        </div>
+        <span id="ajuste-sensibilidad-texto">Normal</span>
+      </div>
+
+      <!-- Botones burbuja para volumen del micro -->
+      <div class="ajuste-grupo">
+        <label class="ajuste-label">Volumen micro</label>
+        <div class="ajuste-botones">
+          <button class="ajuste-btn" data-ajuste="ganancia" data-valor="0.20">20%</button>
+          <button class="ajuste-btn" data-ajuste="ganancia" data-valor="0.50">50%</button>
+          <button class="ajuste-btn" data-ajuste="ganancia" data-valor="1.00">100%</button>
+          <button class="ajuste-btn" data-ajuste="ganancia" data-valor="1.50">150%</button>
+          <button class="ajuste-btn" data-ajuste="ganancia" data-valor="2.00">200%</button>
+        </div>
+        <span id="ajuste-ganancia-texto">100%</span>
+      </div>
+
+      <!-- Botón burbuja PTT -->
+      <div class="ajuste-grupo">
+        <label class="ajuste-label">Modo hablar</label>
+        <div class="ajuste-botones">
+          <button class="ajuste-btn" data-ajuste="ptt" data-valor="0">Siempre abierto</button>
+          <button class="ajuste-btn" data-ajuste="ptt" data-valor="1">Mantén pulsado</button>
+        </div>
+        <span id="ajuste-ptt-texto">Siempre abierto</span>
+      </div>
+
+      <!-- Botones de micrófono y diagnóstico -->
+      <div class="ajuste-botones fila-acciones">
+        <button id="btn-refrescar-micro" class="btn micro-refrescar" title="Buscar más dispositivos">🔄 Micrófono</button>
+        <button id="btn-diagnostico" class="btn boton-diag" type="button">🩺 Diagnosticar audio</button>
+      </div>
+      <pre id="diag-salida" class="ia-salida" hidden></pre>
+      <div id="medidor-burbuja" class="medidor-burbuja">
+        <div class="medidor-barra" id="medidor-barra"></div>
+        <span id="medidor-texto">micro cerrado</span>
+      </div>
+    </div>
+  </section>
 </div>
 
 <script src="/player.js"></script>

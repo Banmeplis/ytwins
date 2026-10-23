@@ -160,7 +160,10 @@
     return new Int16Array(bytes.buffer);
   }
 
-  /** Monta micro → ganancia → worklet → WebSocket. */
+  /** Monta micro → filtros de voz → ganancia → worklet → WebSocket.
+   * Los filtros biquad centran en frecuencias vocales (300 Hz - 3400 Hz)
+   * y cortan graves (ruido de fondo, eco del video) y agudos innecesarios.
+   */
   async function montarEnvio(stream) {
     const Ctx = window.AudioContext || window.webkitAudioContext;
     if (!Ctx || !window.AudioWorkletNode) throw new Error('Este navegador no soporta la captura moderna de audio.');
@@ -175,7 +178,32 @@
     try { voz.envioGanancia?.disconnect?.(); } catch {}
     try { voz.envioAnalizador?.disconnect?.(); } catch {}
     try { voz.vigor?.disconnect?.(); } catch {}
+    try { voz.envioFiltroAlto?.disconnect?.(); } catch {}
+    try { voz.envioFiltroBajo?.disconnect?.(); } catch {}
+    try { voz.envioCompresor?.disconnect?.(); } catch {}
     const fuente = ctx.createMediaStreamSource(stream);
+
+    // ── FILTROS DE VOZ: centrar en frecuencias humanas ──────────────────
+    // Paso alto: corta graves < 80 Hz (rumble, eco del video, golpes)
+    const filtroAlto = ctx.createBiquadFilter();
+    filtroAlto.type = 'highpass';
+    filtroAlto.frequency.value = 80;
+    filtroAlto.Q = 1;
+
+    // Paso bajo: corta agudos > 8 kHz (siseo, chisporroteo)
+    const filtroBajo = ctx.createBiquadFilter();
+    filtroBajo.type = 'lowpass';
+    filtroBajo.frequency.value = 8000;
+    filtroBajo.Q = 1;
+
+    // Compresor simple: evita que los gritos distorsionen y sube los susurros
+    const compresor = ctx.createDynamicsCompressor();
+    compresor.threshold.value = -24;
+    compresor.knee.value = 12;
+    compresor.ratio.value = 4;
+    compresor.attack.value = 0.003;
+    compresor.release.value = 0.1;
+
     const ganancia = ctx.createGain();
     ganancia.gain.value = voz.ganancia;
     const anali = ctx.createAnalyser();
@@ -190,18 +218,22 @@
     }
     URL.revokeObjectURL(url);
     const worklet = new AudioWorkletNode(ctx, 'capturador');
-    // OJO: un nodo cuya salida no va a ninguna parte puede dejar de procesarse
-    // (el motor de audio recorta las ramas que no llegan a la salida), y el
-    // capturador se quedaría mudo sin avisar. Lo colgamos de un silencio.
-    const silencio = ctx.createGain();
-    silencio.gain.value = 0;
-    worklet.port.onmessage = (e) => recibirMarco(e.data, ctx.sampleRate);
-    fuente.connect(ganancia);
+    // cadena: micro → filtro alto → filtro bajo → compresor → ganancia → worklet (envío) + analizador (medición)
+    fuente.connect(filtroAlto);
+    filtroAlto.connect(filtroBajo);
+    filtroBajo.connect(compresor);
+    compresor.connect(ganancia);
     ganancia.connect(anali);     // aquí mide lo que de verdad sale
     ganancia.connect(worklet);   // y aquí viaja al servidor
+    // silenciador para que el worklet no se quede sin salida
+    const silencio = ctx.createGain();
+    silencio.gain.value = 0;
     worklet.connect(silencio);
     silencio.connect(ctx.destination);
     voz.envioFuente = fuente;
+    voz.envioFiltroAlto = filtroAlto;
+    voz.envioFiltroBajo = filtroBajo;
+    voz.envioCompresor = compresor;
     voz.envioGanancia = ganancia;
     voz.envioAnalizador = anali;
     voz.envioBuf = new Uint8Array(anali.frequencyBinCount);
@@ -234,19 +266,56 @@
 
   /* --------------------------- recepción y reproduction ------------------- */
 
-  /** Un participante del canal: prepara (si no estaba) su cadena de WebAudio. */
+  /** Un participante del canal: prepara (si no estaba) su cadena de WebAudio.
+   * Cada persona tiene sus propios filtros de voz para centrar en frecuencias
+   * humanas y evitar que el ruido de fondo o el eco del video se mezclen.
+   */
   function reproducirRemoto(userId) {
     const ctx = contextoAudio();
     if (!ctx) { voz.bloqueado = true; alAviso(userId, 'sin-sonido'); return null; }
     let r = voz.reproductores.get(userId);
     if (!r) {
+      // ── cadena de audio por persona ─────────────────────────────────────
+      const fuente = ctx.createBufferSource(); // se asigna en cada marco
+      // filtro paso alto: corta graves < 100 Hz
+      const filtroAlto = ctx.createBiquadFilter();
+      filtroAlto.type = 'highpass';
+      filtroAlto.frequency.value = 100;
+      filtroAlto.Q = 1;
+      // filtro paso bajo: corta agudos > 7 kHz
+      const filtroBajo = ctx.createBiquadFilter();
+      filtroBajo.type = 'lowpass';
+      filtroBajo.frequency.value = 7000;
+      filtroBajo.Q = 1;
+      // compresor suave: nivelar diferencias entre personas
+      const compresor = ctx.createDynamicsCompressor();
+      compresor.threshold.value = -18;
+      compresor.knee.value = 10;
+      compresor.ratio.value = 3;
+      compresor.attack.value = 0.005;
+      compresor.release.value = 0.1;
       const ganancia = ctx.createGain();
       ganancia.gain.value = 1;
       const analizador = ctx.createAnalyser();
       analizador.fftSize = 512;
+      fuente.connect(filtroAlto);
+      filtroAlto.connect(filtroBajo);
+      filtroBajo.connect(compresor);
+      compresor.connect(ganancia);
       ganancia.connect(analizador);
       ganancia.connect(ctx.destination);
-      r = { ganancia, analizador, buf: new Uint8Array(analizador.frequencyBinCount), cola: [], programado: 0, seq: -1 };
+      r = {
+        fuente,
+        ganancia,
+        analizador,
+        filtroAlto,
+        filtroBajo,
+        compresor,
+        buf: new Uint8Array(analizador.frequencyBinCount),
+        cola: [],
+        programado: 0,
+        seq: -1,
+      };
       voz.reproductores.set(userId, r);
       // mide lo que de verdad suena de esta persona para marcar "está hablando"
       medirDesde({ analizador, buf: r.buf }, userId);
@@ -294,7 +363,7 @@
         for (let i = 0; i < marco.length; i++) canal[i] = marco[i] / 32768;
         const fuente = ctx.createBufferSource();
         fuente.buffer = buffer;
-        fuente.connect(r.ganancia);
+        fuente.connect(r.filtroAlto);   // pasa por filtros de voz y compresor
         fuente.start(cuando);
         cuando += marco.length / ESERVID;
         suena = true;
@@ -499,7 +568,13 @@
 
   function cerrarConexion(userId) {
     const r = voz.reproductores.get(userId);
-    if (r) { try { r.ganancia.disconnect(); r.analizador.disconnect(); } catch {} }
+    if (r) {
+      try { r.fuente?.disconnect?.(); } catch {}
+      try { r.filtroAlto?.disconnect?.(); } catch {}
+      try { r.filtroBajo?.disconnect?.(); } catch {}
+      try { r.compresor?.disconnect?.(); } catch {}
+      try { r.ganancia.disconnect(); r.analizador.disconnect(); } catch {}
+    }
     voz.reproductores.delete(userId);
     voz.hablantes.delete(userId);
     marcarHablando(userId, false);
