@@ -125,10 +125,13 @@
         2: 'El identificador del vídeo no es válido.',
         5: 'Este navegador no puede reproducir el vídeo con HTML5.',
         100: 'El vídeo no existe o es privado.',
-        101: 'El autor no permite reproducirlo embebido aquí.',
-        150: 'El autor no permite reproducirlo embebido aquí.',
+        101: { texto: 'El autor no permite reproducirlo embedido aquí.', noEmbed: true },
+        150: { texto: 'El autor no permite reproducirlo embedido aquí.', noEmbed: true },
       };
-      this.cb.fallo && this.cb.fallo(codigos[e.data] || `YouTube devolvió un error (${e.data}).`);
+      const info = codigos[e.data] || `YouTube devolvió un error (${e.data}).`;
+      const texto = typeof info === 'object' ? info.texto : info;
+      const noEmbed = typeof info === 'object' && info.noEmbed;
+      this.cb.fallo && this.cb.fallo(texto, noEmbed);
     }
     async cargar(item, inicio) {
       if (!this.creado) {

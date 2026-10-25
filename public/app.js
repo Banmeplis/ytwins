@@ -276,7 +276,28 @@ function asegurarReproductor(fuente) {
       } catch {}
       aplicarEstado();
     },
-    fallo: (mensaje) => toast(mensaje, true),
+    fallo: (mensaje, noEmbed) => {
+      if (noEmbed) {
+        // El autor de YouTube no permite reproducir este vídeo embebido
+        // (errores 101/150). No podemos quitar esa restricción, pero sí
+        // evitar que la pantalla se quede en blanco: mostramos un aviso
+        // con un botón para abrir el vídeo en YouTube directamente.
+        const pb = estado?.playback;
+        const videoId = pb?.ref || '';
+        const aviso = $('#aviso-no-embed');
+        if (aviso) {
+          aviso.hidden = false;
+          $('#btn-abrir-youtube').onclick = () => {
+            window.open(`https://www.youtube.com/watch?v=${videoId}`, '_blank');
+          };
+          return;
+        }
+        // si no existe el elemento del aviso, lo creamos
+        toast(`YouTube no permite reproducir este vídeo embebido.`, true);
+      } else {
+        toast(mensaje, true);
+      }
+    },
   });
   return rep;
 }
