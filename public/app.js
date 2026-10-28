@@ -1204,8 +1204,9 @@ function renderResultados() {
     cuerpo.innerHTML = `<span class="titulo"></span><span class="meta"></span>`;
     cuerpo.querySelector('.titulo').textContent = r.title;
     cuerpo.querySelector('.titulo').title = r.title;
-    cuerpo.querySelector('.meta').textContent = [r.canal, r.duration, r.views].filter(Boolean).join(' · ');
-    li.append(cuerpo);
+    // la duración puede venir como texto ("3:45") o en segundos (Dailymotion)
+    cuerpo.querySelector('.meta').textContent = [r.canal, r.duration ? mmss(duracionSegundos(r.duration)) : '', r.views].filter(Boolean).join(' · ');
+    li.append(cuerpo, nodoFuente(r));
 
     const botones = document.createElement('div');
     botones.className = 'botones-item';

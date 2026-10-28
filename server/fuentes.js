@@ -2,8 +2,10 @@
  * Fuentes de vídeo y metadatos, sin claves de API.
  *  - youtube / vimeo / dailymotion: se resuelve el ID y se piden datos por oEmbed
  *  - directo: .mp4/.webm/.ogg/.m3u8 que reproduce el propio navegador
- *  - búsqueda: se consulta la página de resultados de YouTube desde el servidor
- *    (evita el bloqueo CORS del navegador) y se extraen id, título y duración.
+ *  - búsqueda: se consulta la página de resultados de YouTube (y la API pública
+ *    de Dailymotion + búsquedas web tipo DuckDuckGo) desde el servidor (evita el
+ *    bloqueo CORS del navegador) y se extraen id, título y duración.
+ *    Así un mismo buscador sirve para "cualquier lugar", no solo YouTube.
  */
 const UA =
   'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36';
@@ -86,8 +88,8 @@ const nombreDesdeUrl = (u) => {
   }
 };
 
-/** Busca en YouTube y devuelve resultados listos para la cola. */
-export async function buscarVideos(texto) {
+/** Busca en YouTube (la fuente principal) y devuelve resultados listos para la cola. */
+async function buscarYoutube(texto) {
   const q = String(texto || '').trim().slice(0, 80);
   if (!q) return [];
 
@@ -128,7 +130,7 @@ export async function buscarVideos(texto) {
   };
 
   (function caminar(nodo, prof) {
-    if (!nodo || typeof nodo !== 'object' || prof > 40 || items.length > 24) return;
+    if (!nodo || typeof nodo !== 'object' || prof > 40 || items.length > 8) return; // tope por fuente: deja sitio a las demás
     if (Array.isArray(nodo)) {
       for (const hijo of nodo) caminar(hijo, prof + 1);
       return;
@@ -143,4 +145,103 @@ export async function buscarVideos(texto) {
   cacheBusqueda.set(q, { items, expira: Date.now() + TTL_BUSQUEDA });
   if (cacheBusqueda.size > 100) cacheBusqueda.delete(cacheBusqueda.keys().next().value);
   return items;
+}
+
+/** Busca en Dailymotion con su API pública (no hace falta clave de acceso). */
+async function buscarDailymotion(texto) {
+  const q = String(texto || '').trim().slice(0, 80);
+  const res = await fetch(`https://api.dailymotion.com/videos?search_terms=${encodeURIComponent(q)}&fields=title,duration,thumbnail_url,owner_screenname&limit=12`, {
+    headers: { 'user-agent': UA, 'accept-language': 'es' },
+    signal: AbortSignal.timeout(8000),
+  });
+  if (!res.ok) throw new Error(`Dailymotion respondió ${res.status}`);
+  const d = await res.json();
+  const videos = d?.videos || d?.response?.videos || d?.data || [];
+  if (!Array.isArray(videos) || !videos.length) return [];
+  const items = [];
+  for (const v of videos.slice(0, 12)) {
+    const ref = String(v?.id || '');
+    if (!ref) continue;
+    const dur = Number(v?.duration);
+    items.push({
+      fuente: 'dailymotion',
+      ref,
+      url: `https://www.dailymotion.com/video/${ref}`,
+      title: String(v?.title || '').trim() || 'Vídeo de Dailymotion',
+      canal: v?.owner_screenname || v?.owner?.screen_name || null,
+      thumbnail: v?.thumbnail_url || `https://www.dailymotion.com/thumbnail/video/${ref}`,
+      duration: isFinite(dur) && dur > 0 ? Math.round(dur) : null,
+      views: v?.view_count != null ? String(v.view_count) : null,
+    });
+  }
+  return items;
+}
+
+/** Busca en la web (DuckDuckGo) para encontrar videos que no están en YouTube. */
+async function buscarEnRed(texto) {
+  const q = String(texto || '').trim().slice(0, 80);
+  const res = await fetch(`https://html.duckduckgo.com/html/?q=${encodeURIComponent(q + ' video')}`, {
+    headers: { 'user-agent': UA, 'accept-language': 'es' },
+    signal: AbortSignal.timeout(9000),
+  });
+  if (!res.ok) throw new Error(`Búsqueda web respondió ${res.status}`);
+  const html = await res.text();
+  const bloques = html.match(/<a[^>]*class="result__a"[^>]*href="([^"]*)"[^>]*>([\s\S]*?)<\/a>/gi) || [];
+  const items = [];
+  const vistos = new Set();
+  for (const b of bloques) {
+    const href = (b.match(/href="([^"]*)"/) || [])[1] || '';
+    const uddg = href.match(/uddg=([^&"]+)/);
+    if (!uddg) continue;
+    let url = '';
+    try { url = decodeURIComponent(uddg[1]); } catch { continue; }
+    const base = clasificar(url);
+    if (!base) continue;
+    const k = `${base.fuente}:${base.ref}`;
+    if (vistos.has(k)) continue;
+    vistos.add(k);
+    const titulo = (b.match(/>([\s\S]*?)<\/a>/) || [])[1] || '';
+    items.push({
+      fuente: base.fuente,
+      ref: base.ref,
+      url,
+      title: String(titulo).replace(/<[^>]*>/g, '').trim() || `Vídeo en ${base.fuente}`,
+      canal: null,
+      thumbnail: null,
+      duration: null,
+      views: null,
+    });
+  }
+  return items;
+}
+
+/** Busca en YouTube, Dailymotion y en la web: no solo en YouTube. */
+export async function buscarVideos(texto) {
+  const q = String(texto || '').trim().slice(0, 80);
+  if (!q) return [];
+
+  const enCache = cacheBusqueda.get(q);
+  if (enCache && enCache.expira > Date.now()) return enCache.items;
+
+  const items = [];
+  const vistas = new Set();
+  const empujar = (it) => {
+    if (!it?.ref) return;
+    const k = `${it.fuente}:${it.ref}`;
+    if (vistas.has(k)) return;
+    vistas.add(k);
+    items.push(it);
+  };
+
+  // 1) YouTube (buscarYoutube ya cachea sus resultados por consulta)
+  try { for (const it of await buscarYoutube(texto)) empujar(it); } catch { /* cae al resto de fuentes */ }
+  // 2) Dailymotion: su API pública no necesita clave de acceso
+  try { for (const it of await buscarDailymotion(texto)) empujar(it); } catch { /* sin resultados de DM */ }
+  // 3) la web en general: vídeos que no están en YouTube
+  try { for (const it of await buscarEnRed(texto)) empujar(it); } catch { /* sin resultados web */ }
+
+  const limpio = items.slice(0, 24);
+  cacheBusqueda.set(q, { items: limpio, expira: Date.now() + TTL_BUSQUEDA });
+  if (cacheBusqueda.size > 100) cacheBusqueda.delete(cacheBusqueda.keys().next().value);
+  return limpio;
 }

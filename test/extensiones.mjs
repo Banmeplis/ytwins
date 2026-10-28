@@ -61,13 +61,18 @@ try {
   ok(p.thumbnail && p.thumbnail.includes(p.ref), 'miniatura del resultado');
   ok(p.url.includes(p.ref), 'url del resultado');
 
+  // los resultados vienen de varias fuentes (YouTube, Dailymotion, la web…)
+  const fuentes = [...new Set(items.map((i) => i.fuente))];
+  ok(fuentes.includes('youtube'), 'la búsqueda incluye resultados de YouTube');
+  ok(fuentes.every((f) => ['youtube', 'vimeo', 'dailymotion', 'directo'].includes(f)), `las fuentes son conocidas (${fuentes.join(', ')})`);
+
   const cache = await buscarVideos('never gonna give you up');
   ok(cache === items || cache.length === items.length, 'resultados en caché (5 min)');
 
   const vacio = await buscarVideos('   ');
   ok(vacio.length === 0, 'consulta vacía no llama a YouTube');
 } catch (e) {
-  ok(false, `búsqueda en YouTube: ${e.message}`);
+  ok(false, `búsqueda: ${e.message}`);
 }
 
 /* --------------------------- endpoint HTTP ------------------------------ */
