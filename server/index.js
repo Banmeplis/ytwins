@@ -215,7 +215,8 @@ async function manejar(ws, room, user, msg) {
         return enviar(ws, { type: 'error', message: 'No reconozco ese enlace. Admito YouTube, Vimeo, Dailymotion y .mp4/.webm directos.' });
       }
       const repetido = room.queue.some((q) => q.ref === meta.ref) || room.playback.ref === meta.ref;
-      if (repetido) return enviar(ws, { type: 'error', message: 'Ese vídeo ya está en la sala.' });
+      // con playNow la pulsación manda: aunque el vídeo ya esté en la sala se reproduce ya
+      if (repetido && !msg.playNow) return enviar(ws, { type: 'error', message: 'Ese vídeo ya está en la sala.' });
       // lo que el cliente ya sabe (el buscador trae duración y miniatura) vale
       // más que lo que devuelve la API: con la duración el servidor puede
       // avanzar la cola solo, sin depender de ningún navegador
@@ -231,6 +232,7 @@ async function manejar(ws, room, user, msg) {
       };
       if (msg.playNow) {
         // cualquiera puede poner un vídeo a sonar: la sala es de todos
+        room.queue = room.queue.filter((q) => q.ref !== meta.ref); // playNow: se quita de la cola para no repetirlo
         reproducir(room, item);
       } else {
         room.queue.push(item);
@@ -433,9 +435,11 @@ const server = http.createServer(async (req, res) => {
 
   if (url.pathname === '/api/search') {
     try {
-      const items = await buscarVideos(url.searchParams.get('q'));
+      const q = url.searchParams.get('q') || '';
+      const pagina = Math.max(1, parseInt(url.searchParams.get('pagina')) || 1);
+      const items = await buscarVideos(q, pagina);
       res.writeHead(200, { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' });
-      res.end(JSON.stringify({ ok: true, items }));
+      res.end(JSON.stringify({ ok: true, items, pagina }));
     } catch (e) {
       res.writeHead(502, { 'content-type': 'application/json; charset=utf-8' });
       res.end(JSON.stringify({ ok: false, error: String(e?.message || e) }));

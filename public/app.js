@@ -16,6 +16,9 @@ let refReproducido = null;
 let ultimaAccionLocal = 0;
 
 let resultados = [];
+let paginaActual = 0; // página actual de resultados del buscador
+let hayMas = false;    // quedan más resultados por cargar (botón "Cargar más")
+const RESULTADOS_POR_PAGINA = 24;
 let miVoto = -1;
 let buffersRecientes = 0;
 let ultimaEncuestaVista = null; // para abrir "Extras" solo cuando llega una encuesta nueva
@@ -1208,6 +1211,26 @@ function avisoBuscar(txt, error = false) {
   a.style.color = error ? '#ff8b9c' : '';
 }
 
+/** Al final de la lista: carga la página siguiente de resultados. */
+async function cargarMas() {
+  const q = $('#in-buscar').value.trim();
+  if (!q || !hayMas) return;
+  const pagina = paginaActual + 1;
+  try {
+    const res = await fetch('/api/search?q=' + encodeURIComponent(q) + '&pagina=' + pagina);
+    const datos = await res.json();
+    if (!datos.ok) throw new Error(datos.error || 'error');
+    const nueva = (datos.items || []).filter((n) => !resultados.some((r) => `${r.fuente}:${r.ref}` === `${n.fuente}:${n.ref}`));
+    if (!nueva.length) { hayMas = false; return; }
+    resultados = resultados.concat(nueva);
+    paginaActual = pagina;
+    hayMas = nueva.length >= RESULTADOS_POR_PAGINA;
+    renderResultados();
+  } catch (err) {
+    avisoBuscar(`No pude buscar: ${err.message}. Puedes pegar el enlace directamente en la pestaña Cola.`, true);
+  }
+}
+
 function renderResultados() {
   const ul = $('#lista-resultados');
   ul.innerHTML = '';
@@ -1252,7 +1275,12 @@ function renderResultados() {
 
     ul.appendChild(li);
   }
+
+  const cm = $('#cargar-mas');
+  if (cm) cm.hidden = !hayMas;
 }
+
+$('#btn-cargar-mas').onclick = () => cargarMas();
 
 /* --------------------------------- chat --------------------------------- */
 function renderChat() {
@@ -1536,10 +1564,12 @@ $('#form-buscar').onsubmit = async (e) => {
   if (!q) return;
   avisoBuscar('Buscando…');
   try {
-    const res = await fetch('/api/search?q=' + encodeURIComponent(q));
+    const res = await fetch('/api/search?q=' + encodeURIComponent(q) + '&pagina=1');
     const datos = await res.json();
     if (!datos.ok) throw new Error(datos.error || 'error');
     resultados = datos.items || [];
+    paginaActual = 1;
+    hayMas = resultados.length >= RESULTADOS_POR_PAGINA;
     avisoBuscar(resultados.length ? null : 'Sin resultados para esa búsqueda.');
     renderResultados();
   } catch (err) {

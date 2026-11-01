@@ -494,6 +494,9 @@ details.extras summary:hover{color:var(--txt)}
   border:1px solid #2c7a4b;color:#a9f0c6;border-radius:999px;padding:6px 12px;font-size:12px;
   backdrop-filter:blur(6px);max-width:calc(100% - 20px);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 
+/* Contenedor del botón "Cargar más" al final de los resultados */
+.cargar-mas{display:flex;justify-content:center;margin-top:10px}
+
 /* Aviso cuando YouTube no permite el embed (errores 101/150) */
 .aviso-no-embed{position:absolute;inset:0;z-index:4;background:rgba(10,13,19,.9);
   border:1px solid #7a3040;color:#ffb3c0;border-radius:12px;padding:18px;

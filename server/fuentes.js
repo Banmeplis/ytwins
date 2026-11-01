@@ -89,14 +89,16 @@ const nombreDesdeUrl = (u) => {
 };
 
 /** Busca en YouTube (la fuente principal) y devuelve resultados listos para la cola. */
-async function buscarYoutube(texto) {
+async function buscarYoutube(texto, desde = 0, { sinCache = false } = {}) {
   const q = String(texto || '').trim().slice(0, 80);
   if (!q) return [];
 
-  const enCache = cacheBusqueda.get(q);
-  if (enCache && enCache.expira > Date.now()) return enCache.items;
+  if (!sinCache) {
+    const enCache = cacheBusqueda.get(q);
+    if (enCache && enCache.expira > Date.now()) return enCache.items.slice(desde);
+  }
 
-  const res = await fetch(`https://www.youtube.com/results?search_query=${encodeURIComponent(q)}&hl=es&gl=ES`, {
+  const res = await fetch(`https://www.youtube.com/results?search_query=${encodeURIComponent(q)}&hl=es&gl=ES&start=${desde}`, {
     headers: { 'user-agent': UA, 'accept-language': 'es,es;q=0.9' },
     signal: AbortSignal.timeout(8000),
   });
@@ -216,12 +218,17 @@ async function buscarEnRed(texto) {
 }
 
 /** Busca en YouTube, Dailymotion y en la web: no solo en YouTube. */
-export async function buscarVideos(texto) {
+export async function buscarVideos(texto, pagina = 1) {
   const q = String(texto || '').trim().slice(0, 80);
   if (!q) return [];
+  const LIMITE_POR_PAGINA = 24;
 
-  const enCache = cacheBusqueda.get(q);
-  if (enCache && enCache.expira > Date.now()) return enCache.items;
+  const desde = (pagina - 1) * LIMITE_POR_PAGINA;
+
+  if (pagina === 1) {
+    const enCache = cacheBusqueda.get(q);
+    if (enCache && enCache.expira > Date.now()) return enCache.items;
+  }
 
   const items = [];
   const vistas = new Set();
@@ -233,15 +240,17 @@ export async function buscarVideos(texto) {
     items.push(it);
   };
 
-  // 1) YouTube (buscarYoutube ya cachea sus resultados por consulta)
-  try { for (const it of await buscarYoutube(texto)) empujar(it); } catch { /* cae al resto de fuentes */ }
+  // 1) YouTube (con salto de resultados para las páginas siguientes)
+  try { for (const it of await buscarYoutube(texto, desde, { sinCache: pagina > 1 })) empujar(it); } catch { /* cae al resto de fuentes */ }
   // 2) Dailymotion: su API pública no necesita clave de acceso
   try { for (const it of await buscarDailymotion(texto)) empujar(it); } catch { /* sin resultados de DM */ }
   // 3) la web en general: vídeos que no están en YouTube
   try { for (const it of await buscarEnRed(texto)) empujar(it); } catch { /* sin resultados web */ }
 
-  const limpio = items.slice(0, 24);
-  cacheBusqueda.set(q, { items: limpio, expira: Date.now() + TTL_BUSQUEDA });
-  if (cacheBusqueda.size > 100) cacheBusqueda.delete(cacheBusqueda.keys().next().value);
+  const limpio = items.slice(0, LIMITE_POR_PAGINA);
+  if (pagina === 1) {
+    cacheBusqueda.set(q, { items: limpio, expira: Date.now() + TTL_BUSQUEDA });
+    if (cacheBusqueda.size > 100) cacheBusqueda.delete(cacheBusqueda.keys().next().value);
+  }
   return limpio;
 }
