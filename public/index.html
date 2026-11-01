@@ -98,6 +98,12 @@
           <p>📺 YouTube no permite reproducir este vídeo embebido.</p>
           <button id="btn-abrir-youtube" class="btn primario">Abrir en YouTube ↗</button>
         </div>
+        <!-- Sesión de YouTube: el embed se hace desde youtube.com, así que si el
+             navegador tiene la sesión iniciada esa es la que se usa al reproducir -->
+        <div id="sesion-youtube" class="sesion-youtube" hidden>
+          <span class="txt" id="sesion-youtube-txt">Sesión de YouTube: para ver el vídeo con tu cuenta</span>
+          <button id="btn-sesion-youtube" class="btn primario" type="button">Iniciar sesión en YouTube ↗</button>
+        </div>
         <div id="reacciones-vuelo" class="reacciones-vuelo"></div>
       </div>
 

@@ -501,6 +501,16 @@ details.extras summary:hover{color:var(--txt)}
   text-align:center;backdrop-filter:blur(8px)}
 .aviso-no-embed p{font-size:14px;margin:0 0 12px;font-weight:600}
 .aviso-no-embed .btn{padding:10px 18px;font-size:14px}
+
+/* Chip de sesión de YouTube dentro del reproductor: el embed usa las cookies
+   del navegador, así que iniciando sesión aquí se reproduce con esa sesión. */
+.sesion-youtube{position:absolute;top:12px;left:12px;z-index:3;display:flex;align-items:center;gap:8px;
+  background:rgba(10,13,19,.82);border:1px solid var(--line);border-radius:999px;padding:6px 6px 6px 12px;
+  font-size:12px;color:var(--dim);backdrop-filter:blur(6px);max-width:calc(100% - 24px);
+  box-shadow:0 8px 24px rgba(0,0,0,.4)}
+.sesion-youtube[hidden]{display:none}
+.sesion-youtube .txt{flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.sesion-youtube .btn{padding:7px 12px;font-size:12px;border-radius:999px;white-space:nowrap}
 .badge.mic{background:#1d3a2c;color:#7ee2a8}
 .badge.mic.off{background:#3a1d24;color:#ff9aa9}
 #lista-users li.hablando .titulo{color:#8ff0b6;text-shadow:0 0 10px rgba(60,220,130,.45)}

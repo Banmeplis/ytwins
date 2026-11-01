@@ -100,7 +100,15 @@
       this.p = await new Promise((res) => {
         const p = new global.YT.Player(nodo, {
           videoId: item ? item.ref : '',
-          playerVars: { rel: 0, modestbranding: 1, playsinline: 1, origin: global.location.origin, controls: 1 },
+          // El iframe de YouTube se sirve desde youtube.com: comparte las cookies
+          // del navegador, así que cuando hay sesión iniciada esa sesión es la que
+          // se usa (vídeos restringidos por edad, canal/consent incluidos). El
+          // playerVars solo ajusta la apariencia/contexto del embed.
+          playerVars: {
+            rel: 0, modestbranding: 1, playsinline: 1, controls: 1,
+            origin: global.location.origin,
+            hl: String(global.navigator?.language || 'es').toLowerCase().split('-')[0],
+          },
           events: {
             onReady: () => { this.cb.listo && this.cb.listo(); res(p); },
             onStateChange: (e) => this._onEstado(e),

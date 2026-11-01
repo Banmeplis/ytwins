@@ -327,6 +327,23 @@ function avisarFinDeVideo() {
   enviar({ type: 'playback.ended' });
 }
 
+/* ---------------------- sesión de YouTube (reproducción con cuenta) ------- */
+/* El embed de YouTube se monta dentro de youtube.com, que comparte las cookies
+ * del navegador: cuando hay una sesión iniciada esa es la que usa el reproductor
+ * (por eso los vídeos restringidos solo pasan con sesión). El chip solo gestiona
+ * abrir esa sesión desde la app cuando el usuario no la tiene activa. */
+function pintarSesionYouTube() {
+  const el = $('#sesion-youtube');
+  if (!el) return;
+  const pb = estado?.playback;
+  const hayYt = !!pb?.ref && (pb.fuente || 'youtube') === 'youtube';
+  el.hidden = !hayYt;
+  const txt = $('#sesion-youtube-txt');
+  if (txt) txt.textContent = hayYt
+    ? 'Sesión de YouTube: iniciar para reproducir con tu cuenta'
+    : '';
+}
+
 /** Sincroniza el reproductor local con el estado autoritativo del servidor. */
 function aplicarEstado(soloSync = false) {
   if (!estado) return;
@@ -338,6 +355,7 @@ function aplicarEstado(soloSync = false) {
   }
   const pb = estado.playback;
   const hayVideo = !!pb.ref;
+  pintarSesionYouTube();
 
   $('#player-vacio').hidden = hayVideo;
   $('#btn-play').disabled = !hayVideo || !puedoControlar();
@@ -1631,6 +1649,13 @@ $('#btn-autoplay').onclick = () => {
   ultimaAccionLocal = Date.now();
   try { rep.reproducir(); } catch {}
   setTimeout(pintarAutoplay, 600);
+};
+
+// Sesión de YouTube: abre la cuenta (cookies del navegador) en una pestaña para
+// que el embed vuelva a reproducir con la sesión iniciada.
+$('#btn-sesion-youtube').onclick = () => {
+  const ref = estado?.playback?.ref || '';
+  window.open(ref ? `https://www.youtube.com/watch?v=${ref}` : 'https://www.youtube.com/', '_blank');
 };
 
 $('#seek').oninput = (e) => {
