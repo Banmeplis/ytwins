@@ -736,15 +736,7 @@ function etiquetaSensibilidad(v) {
 }
 
 function pintarOpcionesVoz() {
-  const a = window.YTwinsVoz?.ajustes?.() || {};
-  const sens = $('#in-sensibilidad');
-  const gan = $('#in-ganancia');
-  if (sens) sens.value = Math.round((a.sensibilidad ?? 0.06) * 100);
-  if (gan) gan.value = Math.round((a.ganancia ?? 1) * 100);
-  const ptt = $('#in-ptt');
-  if (ptt) ptt.checked = !!a.ptt;
-  $('#val-sensibilidad').textContent = etiquetaSensibilidad(Number(sens?.value));
-  $('#val-ganancia').textContent = `${Math.round((a.ganancia ?? 1) * 100)} %`;
+  pintarAjustes(); // los ajustes de voz son botones con data-ajuste (no inputs de texto)
   pintarMedidor();
 }
 
@@ -814,10 +806,8 @@ function pintarMedidor() {
 }
 
 function conectarOpcionesVoz() {
-  $('#btn-voz-opciones').onclick = () => {
-    $('#opciones-voz').open = !$('#opciones-voz').open;
-    if ($('#opciones-voz').open) listarMicros(); // al abrir, muestra todo lo que haya
-  };
+  // el panel de ajustes de voz ahora es la burbuja con botones (data-ajuste): se abre/cierra aquí
+  $('#btn-voz-opciones').onclick = () => abrirAjustes($('#panel-ajustes').hidden);
 
   $('#sel-micro').onchange = async (e) => {
     const r = await window.YTwinsVoz.cambiarMicro(e.target.value);
@@ -838,27 +828,6 @@ function conectarOpcionesVoz() {
       if ($('#panel-extras').open || window.YTwinsVoz?.estado?.().activa) listarMicros();
     });
   }
-
-  $('#in-sensibilidad').oninput = (e) => {
-    const v = Number(e.target.value) / 100;
-    window.YTwinsVoz.setSensibilidad(v);
-    window.YTwinsVoz.aplicarAjustes({ sensibilidad: v });
-    pintarOpcionesVoz();
-  };
-
-  $('#in-ganancia').oninput = (e) => {
-    const v = Number(e.target.value) / 100;
-    window.YTwinsVoz.setGanancia(v);
-    window.YTwinsVoz.aplicarAjustes({ ganancia: v });
-    pintarOpcionesVoz();
-  };
-
-  $('#in-ptt').onchange = (e) => {
-    window.YTwinsVoz.setPushToTalk(e.target.checked);
-    window.YTwinsVoz.aplicarAjustes({ ptt: e.target.checked });
-    pintarBotonVoz();
-    if (e.target.checked && window.YTwinsVoz.estado().activa) window.YTwinsVoz.hablarTemporal(false);
-  };
 
   // con "hablar solo mientras pulsado": mantener 🎙️ = hablar
   const mic = $('#btn-voz');

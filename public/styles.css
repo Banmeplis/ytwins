@@ -346,6 +346,11 @@ h1,h2{margin:0}
 .ajuste-botones.fila-acciones{justify-content:center}
 #ajuste-sensibilidad-texto,#ajuste-ganancia-texto,#ajuste-ptt-texto{font-size:11px;color:var(--dim);margin-top:4px}
 
+/* selector de micrófono dentro del panel de ajustes */
+#sel-micro{width:100%;min-width:0;padding:9px 10px;background:var(--panel);color:var(--txt);
+  border:1px solid var(--line);border-radius:10px;font:inherit;cursor:pointer}
+#val-micro{font-style:normal;color:var(--txt);font-variant-numeric:tabular-nums}
+
 /* medidor de nivel en el panel de ajustes */
 .medidor-burbuja{margin-top:8px;padding-top:8px;border-top:1px solid var(--line)}
 .medidor-barra{height:8px;border-radius:999px;background:#0b0e14;border:1px solid var(--line);
