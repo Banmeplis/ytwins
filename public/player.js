@@ -150,7 +150,13 @@
       if (this.refActual !== item.ref) {
         this.refActual = item.ref;
         this._inicio = inicio || 0;
-        this.p.loadVideoById(item.ref, Math.max(0, inicio || 0));
+        // recrear es más fiable que loadVideo: el SDK anterior puede estar
+        // inmovilizado (con el estado del vídeo anterior) y no arranca limpio
+        try { this.p.destroy(); } catch {}
+        this.cont.innerHTML = '';
+        this.creado = false;
+        await this._aseguro(item);
+        return;
       } else if (inicio > 1) {
         try { this.p.seekTo(inicio, true); } catch {}
       }
