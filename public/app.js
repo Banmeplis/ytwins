@@ -90,11 +90,15 @@ const pintarConexion = (tipo, texto) => {
  * cuando vuelve a entrar (recargar la página, caer la red) y no duplicarla
  * en la lista. */
 const CLIENTE_ID = (() => {
+  // OJO: va en sessionStorage (no en localStorage): localStorage es COMpartido
+  // por todas las pestañas del mismo navegador, así que dos personas usando el
+  // mismo browser en dos pestañas se tratarían como la MISMA persona y el dedup
+  // del servidor las "fusionaba". Con sessionStorage cada pestaña tiene su id.
   try {
-    let v = localStorage.getItem('yr-cliente');
+    let v = sessionStorage.getItem('yr-cliente');
     if (!v) {
       v = (window.crypto?.randomUUID?.() || (Date.now() + '-' + Math.random().toString(36).slice(2)));
-      localStorage.setItem('yr-cliente', v);
+      try { sessionStorage.setItem('yr-cliente', v); } catch {}
     }
     return v;
   } catch {
