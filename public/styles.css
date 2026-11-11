@@ -438,25 +438,32 @@ h1,h2{margin:0}
 .lista-tarjetas .botones-item .btn{flex:1;padding:9px 6px;font-size:12.5px;border-radius:10px;min-height:36px}
 .duracion{position:absolute;right:11px;bottom:11px}
 
-/* ------------------ "está hablando": ondas y burbujas de chat ------------ */
+/* ------------------ burbujas de chat: estilo premium ---------------- */
 .msg{display:flex;flex-direction:column;max-width:80%;gap:3px}
-.msg .autor{font-size:11.5px;color:var(--acento2);font-weight:700;padding:0 4px}
-.msg .texto{background:linear-gradient(135deg,#232f4d,#22203f);border:1px solid #33456b;color:#e8edfb;
-  border-radius:16px;padding:9px 13px;font-size:14px;word-break:break-word;line-height:1.45;
-  box-shadow:0 2px 8px rgba(0,0,0,.25)}
-.msg .hora{font-size:10px;color:#5f6b7f;padding:0 5px}
-.msg.mio{align-self:flex-end;align-items:flex-end}
-.msg.mio .texto{background:linear-gradient(135deg,#ff4d6d,#ff7b54);border-color:#ff7d99;color:#fff}
+.msg .autor{font-size:10px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;padding:0 6px}
+.msg .texto{border-radius:16px 16px 16px 4px;padding:10px 14px;font-size:14px;word-break:break-word;line-height:1.5;box-shadow:0 4px 14px rgba(0,0,0,.35)}
+.msg .hora{font-size:9px;color:#5f6b7f;padding:0 6px}
+
+/* mío: gradiente cálido, alineado a la derecha */
+.msg.mio{align-self:flex-end;align-items:flex-end;text-align:right}
+.msg.mio .texto{border-radius:16px 16px 4px 16px;background:linear-gradient(135deg,#ff4d6d,#ff7b54);border-color:#ff7d99;color:#fff}
 .msg.mio .autor{color:#ff9aa9}
-.msg.otro{align-self:flex-start;align-items:flex-start}
-.msg.otro .texto{background:linear-gradient(135deg,#26335a,#242144);border-color:#3a4a78}
+
+/* del otro: azul noche, alineado a la izquierda */
+.msg.otro{align-self:flex-start;align-items:flex-start;text-align:left}
+.msg.otro .texto{border-radius:16px 16px 16px 4px;background:linear-gradient(135deg,#232f4d,#1e283c);border-color:#33456b;color:#e8edfb}
+.msg.otro .autor{color:#8cc7ff}
 .msg.otro .hora{align-self:flex-start}
+
+/* mensajes seguidos del mismo autor: se ocultan autor/hora y se cierran esquinas */
 .msg.seguido .autor,.msg.seguido .hora{display:none}
 .msg.seguido{margin-top:-6px}
 .msg.seguido .texto{border-radius:16px}
-.msg.mio.seguido .texto{border-bottom-right-radius:6px}
-.msg.otro.seguido .texto{border-bottom-left-radius:6px}
-.msg:not(.seguido) .texto{box-shadow:0 4px 14px rgba(0,0,0,.35)}
+.msg.mio.seguido .texto{border-bottom-right-radius:4px}
+.msg.otro.seguido .texto{border-bottom-left-radius:4px}
+/* burbuja flotante con halo de colores según el autor */
+.msg.mio .texto::before{content:'';position:absolute;top:-6px;right:-6px;width:14px;height:14px;border-radius:50%;background:#ff9aa9;opacity:.6}
+.msg.otro .texto::before{content:'';position:absolute;top:-6px;left:-6px;width:14px;height:14px;border-radius:50%;background:#8cc7ff;opacity:.6}
 
 /* ondas de voz: anillos que salen del micrófono de quien habla */
 li.hablando{position:relative}
@@ -633,6 +640,16 @@ li.hablando .badge.mic::before{
   15%{opacity:1;transform:translateY(-10px) scale(1.1)}
   100%{transform:translateY(-190px) scale(1) rotate(-12deg);opacity:0}
 }
+
+/* ---------------- indicador de "está online" en la lista ---------------- */
+.online-indicador{
+  display:inline-block;width:7px;height:7px;border-radius:50%;
+  background:var(--ok);box-shadow:0 0 8px var(--ok);margin-right:6px;
+  animation:pulso 2s ease-in-out infinite}
+@keyframes pulso{
+  0%,100%{opacity:1;transform:scale(1)}50%{opacity:.6;transform:scale(1.25)}
+}
+.estado-offline{opacity:.45}
 
 /* ------------------------------- plugins -------------------------------- */
 .plugins{margin-top:14px;border-top:1px dashed var(--line);padding-top:10px}

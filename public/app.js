@@ -322,7 +322,7 @@ function alAccionLocal(tipo, t) {
   }
 }
 
-const repListo = () => !!(rep && (typeof rep.listo === 'function' ? rep.listo() : rep.creado && rep.duracion() > 0));
+const repListo = () => !!(rep && (typeof rep.listo === 'function' ? rep.listo() : rep.creado && (rep.duracion() > 0 || (estado?.playback?.duration || 0) > 0)));
 
 /** Avisa al servidor de que este vídeo se acabó (para que la cola siga).
  *  Con calma: como mucho una vez cada 5 segundos. */
@@ -364,7 +364,16 @@ function aplicarEstado(soloSync = false) {
   const hayVideo = !!pb.ref;
   pintarSesionYouTube();
 
-  $('#player-vacio').hidden = hayVideo;
+  $('#player-vacio').hidden = hayVideo && repListo();
+  const pv = $('#player-vacio');
+  if (hayVideo && !repListo()) {
+    pv.hidden = false;
+    pv.querySelector('p').textContent = 'Cargando vídeo…';
+    pv.querySelector('#player-vacio-hint').textContent = 'Preparando el reproductor, espere un momento…';
+  } else if (!hayVideo) {
+    pv.querySelector('p').textContent = 'Sin reproducción';
+    pv.querySelector('#player-vacio-hint').textContent = 'Busca un vídeo o pega un enlace →';
+  }
   $('#btn-play').disabled = !hayVideo || !puedoControlar();
   $('#btn-siguiente').disabled = !hayVideo || !puedoControlar();
   $('#seek').disabled = !hayVideo || !puedoControlar();
@@ -470,6 +479,18 @@ function pintarEstadoSync() {
     el.textContent = `Sincronizado ✓${puedoControlar() ? ' · controlas' : ''}`;
     el.className = 'ok';
   }
+}
+
+/** Avisa claramente quién puede poner música en la sala. */
+function pintarQuienControla() {
+  const el = $('#aviso-quien-puede-poner-musica');
+  if (!el || !estado) return;
+  const todos = estado.controlPolicy === 'everyone';
+  el.hidden = false;
+  el.textContent = todos
+    ? '🎵 Todos pueden poner música · dale a ▶ Ver en cualquier resultado'
+    : '🔒 Solo quien controla pone música (el anfitrión puede cambiarlo en Extras)';
+  el.style.color = todos ? '' : '#ffcb6b';
 }
 
 /** Tick de 1 s: detecta seek local (barra de YouTube/Vimeo/Dailymotion) y refresca HUD. */
@@ -606,6 +627,11 @@ function renderUsers() {
     nombre.className = 'titulo';
     nombre.textContent = u.name + (esYo ? ' (tú)' : '');
 
+    // punto verde: esta persona está conectada ahora mismo
+    const online = document.createElement('span');
+    online.className = 'online-indicador';
+    online.title = 'Conectado';
+
     const etiquetas = document.createElement('span');
     etiquetas.className = 'meta';
     const mic = enVoz.get(u.id);
@@ -613,7 +639,7 @@ function renderUsers() {
     if (u.anfitrion) etiquetas.innerHTML += '<span class="badge host">anfitrión</span>';
     else if (u.role === 'controller') etiquetas.innerHTML += '<span class="badge ctrl">controla</span>';
 
-    li.append(nombre, etiquetas);
+    li.append(online, nombre, etiquetas);
 
     // control de volumen de CADA persona (solo en tu navegador): para
     // bajarle el صوت a quien grita o silenciarlo del todo
@@ -1238,7 +1264,7 @@ function renderResultados() {
     const ya = document.createElement('button');
     ya.className = 'btn primario';
     ya.textContent = '▶ Ver';
-    ya.title = 'Reproducirlo ahora en la sala';
+    ya.title = '▶ Ver — cualquiera puede poner este vídeo en la sala (no solo el anfitrión)';
     ya.onclick = () => enviar({ type: 'queue.add', ...datos, playNow: true });
     botones.prepend(ya);
     li.append(botones);
